@@ -1,0 +1,45 @@
+CREATE TABLE users(
+  user_id INT(50) NOT NULL AUTO_INCREMENT = 1210,
+  fname VARCHAR(100),
+  lname VARCHAR(100),
+  email VARCHAR(100),
+  username VARCHAR(100),
+  password VARCHAR(100),
+  register_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY(user_id)
+);
+
+CREATE TABLE time_entry(
+  time_id INT(50)  NOT NULL AUTO_INCREMENT,
+  user_id INT,
+  Date VARCHAR(30),
+  FirstName VARCHAR(100),
+  LastName VARCHAR(100),
+  Time_In VARCHAR(50),
+  Time_Out VARCHAR(50),
+  Start_Miles VARCHAR(50),
+  End_Miles VARCHAR(50),
+  Miles_Driven VARCHAR(50),
+  PRIMARY KEY (time_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  date_submitted TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+
+CREATE TABLE sales_entry(
+  sale_id INT(50) NOT NULL AUTO_INCREMENT,
+  user_id INT,
+  Date VARCHAR(30),
+  FirstName VARCHAR(100),
+  LastName VARCHAR(100),
+  vid_unit INT(50),
+  hsd_unit INT(50),
+  voice_unit INT(50),
+  revenue INT(50),
+  chat_id INT(100),
+  cust_id INT(100),
+  comment VARCHAR(100),
+  PRIMARY KEY (sale_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  date_submitted TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);

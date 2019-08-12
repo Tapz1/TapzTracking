@@ -1,0 +1,40 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <p class="lead" align="right">Today's date: {{ date }}</p>
+    <h1><strong>Sales Entry</strong></h1>
+    <h2><small>{{ name_greet }}, here you can submit your sales throughout the day.</small></h2>
+    <br>
+    <br>
+    {% from "includes/_formhelpers.html" import render_field %}
+    <form method="POST" action="" align="center">
+        <div class="form-group" align="center">
+            <div class="row">
+                <label class="col-sm-4"> <!-- vid input -->
+                  {{render_field(form.vid_unit, class="form-control", type="number")}}
+                </label>
+                <label class="col-sm-4"> <!-- hsd input -->
+                    {{render_field(form.hsd_unit, class="form-control", type="number")}}
+                </label>
+                <label class="col-sm-4"> <!-- voice input -->
+                    {{render_field(form.voice_unit, class="form-control", type="number")}}
+                </label>
+                <label class="col-sm-4"> <!-- revenue input -->
+                    {{render_field(form.revenue, class="form-control", type="number", step="0.01")}}
+                </label>
+                <label class="col-sm-4"> <!-- chat  ID input -->
+                    {{render_field(form.chat_id, class="form-control", type="number")}}
+                </label>
+                <label class="col-sm-4"> <!-- cust_id input -->
+                    {{render_field(form.cust_id, class="form-control", type="number")}}
+                </label>
+                <label class="col-sm-4"> <!-- comment input -->
+                    {{render_field(form.comment, class="form-control", type="text")}}
+                </label>
+            </div>
+        </div>
+        <br>
+        <p><input type="Submit" class="btn btn-primary" value="Submit"></p>
+    </form>
+
+{% endblock %}

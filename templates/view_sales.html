@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+<p class="lead" align="right">Today's date: {{ date }}</p>
+
+{% from "includes/_formhelpers.html" import render_field %}
+<h1><strong>View Sales</strong></h1>
+<h2><small>{{ name_greet }}, here you can view your sales.</small></h2>
+
+<form action="" method="POST" id="time">
+ <div class="text-center mb-4">
+   <h1 class="h3 mb-3 font-weight-normal">Time Period</h1>
+ </div>
+
+ <div class="form-label-group">
+   <div class="col-md-6 col-md-offset-3 text-center">
+     <h3 align="left"><small>Date From</small></h3>
+     <input type="date" name="date_from" class="form-control" placeholder="" required autofocus value={{request.form.date_from}}>
+   </div>
+
+     <div class="col-md-6 col-md-offset-3 text-center">
+       <h3 align="left"><small>Date To</small></h3>
+        <input type="date" name="date_to" class="form-control" placeholder="Date To" required value={{request.form.date_to}}>
+      </div>
+    </div>
+
+
+ <div class="col-md-6 col-md-offset-3 text-center">
+     <button class="btn btn-lg btn-primary btn-block" type="submit" name="search">Search</button>
+     <br>
+     <h2 class="lead-center">Total Sales this period: {{total_units}} units and ${{total_rev}} in revenue</h2>
+     <h2 class="lead-center"><small>Video: {{total_vids}} | Int: {{total_hsd}}  | Voice: {{total_voice}}</small></h2>
+     <p><input type="submit" class="btn btn-primary" name="download" value="Download"></p>
+ </div>
+
+</form>
+
+<div class="" style="clear:both;">
+
+  <br>
+  <pre class="tab">&nbsp; {{table}}</pre>
+</div>
+
+{% endblock body %}

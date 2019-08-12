@@ -1,0 +1,27 @@
+# converts the data from DB to a csv file
+
+from import_lib import *
+import main
+#from main import upload
+
+
+# this takes info entered into
+def db_to_csv(current_userid):
+    cur = main.mysql.connection.cursor()
+
+# grabs the current user id to grab only their data
+    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND DATE(date_submitted) = CURRENT_DATE()", [current_userid])
+
+    data_list = list(cur.fetchall())
+
+    with open(str("Time Entry Report.csv"), "w", newline='') as csv_file:
+        # fieldnames are the headers from the table that are turned into headers
+        fieldnames = ['Date', 'FirstName', 'LastName', 'Time_In', 'Time_Out']#, 'Start_Miles', 'End_Miles', 'Miles_Driven']
+        csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        csv_writer.writeheader()
+        for row in data_list:
+            del row['time_id']  # removes columns, ya don't need
+            del row['user_id']
+            del row['date_submitted']
+            csv_writer.writerow(row)
+        #upload(csv_file)

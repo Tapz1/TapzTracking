@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+	<!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+	{% if title %}
+		<title>TapzTracking - {{ title }}</title>
+	{% else %}
+		<title>TapzTracking</title>
+	{% endif %}
+  <!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+
+  <!-- Font Awesome for Social buttons -->
+    <script src="https://kit.fontawesome.com/8c81907eaa.js"></script>
+
+    <!-- reference your copy Font Awesome here (from our CDN or by hosting yourself) -->
+    <link href="/your-path-to-fontawesome/css/fontawesome.css" rel="stylesheet">
+    <link href="/your-path-to-fontawesome/css/brands.css" rel="stylesheet">
+    <link href="/your-path-to-fontawesome/css/solid.css" rel="stylesheet">
+</head>
+<body>
+	{% include 'includes/_navbar.html' %}
+	<div class="container">
+		{% include 'includes/_messages.html' %}
+		{% block body %}{% endblock %}
+	</div>
+
+    <!-- jQuery library -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+  <!-- Latest compiled JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+
+
+  <div align="center" style="position: relative; background-color: white; width: 600px; height: 800px;">
+
+    <div style="position: absolute; bottom: 5px; background-color: white">
+    Made with Flask - 2019
+    </div>
+</div>
+</body>
+</html>
