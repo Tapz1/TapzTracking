@@ -1,18 +1,19 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-<p class="lead" align="right">Today's date: {{ date }}</p>
+<p class="lead" align="right"><strong>Today's date: {{ date }}</strong></p>
 
 {% from "includes/_formhelpers.html" import render_field %}
 <h1><strong>View Sales</strong></h1>
-<h2><small>{{ name_greet }}, here you can view your sales.</small></h2>
+<hr>
+<h5 class="font-weight-lighter">{{ name_greet }}, here you can view your sales.</h5>
 
-<form action="" method="POST" id="time">
+<form action="" method="POST" id="time" class="justify-content-center">
  <div class="text-center mb-4">
    <h1 class="h3 mb-3 font-weight-normal">Time Period</h1>
  </div>
 
- <div class="form-label-group">
+ <div align="center">
    <div class="col-md-6 col-md-offset-3 text-center">
      <h3 align="left"><small>Date From</small></h3>
      <input type="date" name="date_from" class="form-control" placeholder="" required autofocus value={{request.form.date_from}}>
@@ -21,24 +22,68 @@
      <div class="col-md-6 col-md-offset-3 text-center">
        <h3 align="left"><small>Date To</small></h3>
         <input type="date" name="date_to" class="form-control" placeholder="Date To" required value={{request.form.date_to}}>
-      </div>
-    </div>
 
-
- <div class="col-md-6 col-md-offset-3 text-center">
      <button class="btn btn-lg btn-primary btn-block" type="submit" name="search">Search</button>
      <br>
-     <h2 class="lead-center">Total Sales this period: {{total_units}} units and ${{total_rev}} in revenue</h2>
-     <h2 class="lead-center"><small>Video: {{total_vids}} | Int: {{total_hsd}}  | Voice: {{total_voice}}</small></h2>
-     <p><input type="submit" class="btn btn-primary" name="download" value="Download"></p>
- </div>
 
-</form>
+     {% if total_units %}
+       <h2 align="center">Total Sales this period: {{total_units}} units and ${{total_rev}} in revenue</h2>
+       <hr>
+       <h2 align="center"><small>Video: {{total_vids}} | Int: {{total_hsd}}  | Voice: {{total_voice}}</small></h2>
+       <h2 align="center"><small>Video Attach: {{vid_attach}}% | TP Selling Rate: {{tp_percent}}% | DP Selling Rate: {{dp_percent}}% | SP Selling Rate: {{sp_percent}}%</small></h2>
+       <p><input type="submit" class="btn btn-primary" name="download" value="Download"></p>
+   </div>
+   </div>
 
-<div class="" style="clear:both;">
+  </form>
 
-  <br>
-  <pre class="tab">&nbsp; {{table}}</pre>
+  <div class="" style="clear:both;">
+
+    <br>
+    <table class="table table-dark table-hover" align="center" style="font-family:Tahoma; width:90%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
+      <tr>
+        <th style="text-align:center;"><font size="4">Date</font></th>
+        <!--<th style="text-align:center;"><font size="4">Name</font></th>-->
+        <th style="text-align:center;"><font size="4">Video</font></th>
+        <th style="text-align:center;"><font size="4">Internet</font></th>
+        <th style="text-align:center;"><font size="4">Voice</font></th>
+        <th style="text-align:center;"><font size="4">Revenue</font></th>
+        <th style="text-align:center;"><font size="4">Chat ID</font></th>
+        <th style="text-align:center;"><font size="4">Cust ID</font></th>
+        <th style="text-align:center;"><font size="4">Comments</font></th>
+      </tr>
+
+      {% for i in table %}
+      <tr>
+        <td><font size="3">{{i.Date}}</font></td>
+        <!--<td><font size="3">{{i.FirstName + ' ' + i.LastName}}</font></td>-->
+        <td><font size="3">{{i.vid_unit}}</font></td>
+        <td><font size="3">{{i.hsd_unit}}</font></td>
+        <td><font size="3">{{i.voice_unit}}</font></td>
+        <td><font size="3">{{i.revenue}}</font></td>
+        <td><font size="3">{{i.chat_id}}</font></td>
+        <td><font size="3">{{i.cust_id}}</font></td>
+        <td><font size="3">{{i.comment}}</font></td>
+        <td><a href="edit_sale/{{i.sale_id}}" class="btn btn-default pull-right text-dark" name="view_sales"><strong>Edit</strong></a></td>
+        <td>
+           <form action="{{url_for('delete_sale', sale_id=i.sale_id)}}" method="post">
+             <input type="hidden" name="_method" value="DELETE">
+             <!--added onclick delete confirmation-->
+             <input type="submit" value="Delete" onclick="return confirm('Are you sure you want to delete this entry?');" class="btn btn-danger">
+           </form>
+         </td>
+      </tr>
+      {% endfor %}
+
+    </table>
+
+    {% else %}
+    <br>
+     <h2 align="center">That's awkward. There's nothing here....</h2>
+     <h3>...</h3>
+     <h4>..</h4>
+     <h5>.</h5>
+     {% endif %}
 </div>
 
 {% endblock body %}

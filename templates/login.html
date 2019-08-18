@@ -1,27 +1,28 @@
 {% extends 'layout.html' %}
 
 {% block body %}
+  <br>
+  <br>
+  <br>
 
      <form action="" method="POST">
       <div class="text-center mb-4">
         <h1 class="h3 mb-3 font-weight-normal">TapzTracking</h1>
       </div>
 
-      <div class="form-label-group">
+      <div align="center">
         <div class="col-md-6 col-md-offset-3 text-center">
           <input type="email" name="email" class="form-control" placeholder="Email" required autofocus value={{request.form.email}}>
         </div>
       </div>
 
-      <div class="form-label-group">
+      <div align="center">
         <div class="col-md-6 col-md-offset-3 text-center">
           <input type="password" name="password" class="form-control" placeholder="Password" required value={{request.form.password}}>
         </div>
-      </div>
       <div class="col-md-6 col-md-offset-3 text-center">
           <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
-      </div>
-      <div class="border-top col-md-6 col-md-offset-3 text-center">
+      
         <small class="text-muted">
            Don't have an account? <a class="ml-2" href="{{ url_for('register') }}">Sign Up!</a>
         </small>

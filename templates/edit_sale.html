@@ -1,0 +1,49 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+
+    <p class="lead" align="right">Today's date: {{ date }}</p>
+    <h1><strong>Edit Sale</strong></h1>
+    <hr>
+
+    <br>
+    <br>
+    {% from "includes/_formhelpers.html" import render_field %}
+    <form method="POST" action="" align="left">
+        <div class="form-group" align="left">
+            <div class="row">
+                <label class="lead-center"> <!-- vid input -->
+                  {{render_field(form.vid_unit, class="form-control", type="number", style='text-align:center; width: 40%;')}}
+                </label>
+                <label class="lead-center"> <!-- hsd input -->
+                    {{render_field(form.hsd_unit, class="form-control", type="number", style='text-align:center; width: 40%;')}}
+                </label>
+
+                <label class="lead-center"> <!-- voice input -->
+                    {{render_field(form.voice_unit, class="form-control", type="number", style='text-align:center; width: 40%;')}}
+                </label>
+                <label class="lead-center"> <!-- revenue input -->
+                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", style='text-align:center; width: 40%;')}}
+                </label>
+              <div class="" style="clear:both;">
+                <label class="lead-center"> <!-- chat  ID input -->
+                    {{render_field(form.chat_id, class="form-control", type="number")}}
+                </label>
+                <label class="lead-center"> <!-- cust_id input -->
+                    {{render_field(form.cust_id, class="form-control", type="number")}}
+                </label>
+                </div>
+
+                <div class="" style="clear:both;">
+                <label class="lead-center" id='comment'> <!-- comment input -->
+                    {{render_field(form.comment, class="form-control", type="text")}}
+                </label>
+                </div>
+            </div>
+        </div>
+        <br>
+        <p><input type="Submit" class="btn btn-primary" value="Submit"></p>
+
+    </form>
+
+    {% endblock %}

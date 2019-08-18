@@ -1,43 +1,76 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-<p class="lead" align="right">Today's date: {{ date }}</p>
+<p class="lead" align="right"><strong>Today's date: {{ date }}</strong></p>
 
 {% from "includes/_formhelpers.html" import render_field %}
 <h1><strong>View Time</strong></h1>
-<h2><small>{{ name_greet }}, here you can view your time entry.</small></h2>
-
-<form action="" method="POST" id="time">
+<hr>
+<h5 class="font-weight-lighter">{{ name_greet }}, here you can view and download your time entry.</h5>
+<br>
+<form action="" method="POST" id="time" class="justify-content-center">
  <div class="text-center mb-4">
    <h1 class="h3 mb-3 font-weight-normal">Time Period</h1>
  </div>
 
- <div class="form-label-group">
+ <div align="center">
    <div class="col-md-6 col-md-offset-3 text-center">
-     <h3 align="left"><small>Date From</small></h3>
+     <h3 align="left"><small><strong>Date From</strong></small></h3>
      <input type="date" name="date_from" class="form-control" placeholder="" required autofocus value={{request.form.date_from}}>
    </div>
 
      <div class="col-md-6 col-md-offset-3 text-center">
-       <h3 align="left"><small>Date To</small></h3>
+       <h3 align="left"><small><strong>Date To</strong></small></h3>
         <input type="date" name="date_to" class="form-control" placeholder="Date To" required value={{request.form.date_to}}>
-      </div>
+
+      <button class="btn btn-lg btn-primary btn-block" type="submit" name="search">Search</button>
+      <br>
+    {% if total %}
+      <h2 align="center">Total time this period: {{total}} hours</h2>
+      <hr>
+      <p><input type="submit" class="btn btn-primary" name="download" value="Download"></p>
     </div>
+  </div>
 
+  </form>
 
- <div class="col-md-6 col-md-offset-3 text-center">
-     <button class="btn btn-lg btn-primary btn-block" type="submit" name="search">Search</button>
-     <br>
-     <h2 class="lead-center">Total time this period: {{total}} hours</h2>
-     <p><input type="submit" class="btn btn-primary" name="download" value="Download"></p>
- </div>
+  <div class="" style="clear:both;">
 
-</form>
+    <br>
+    <table class="table table-dark table-hover" align="center" style="font-family:Tahoma; width:80%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
+      <tr>
+        <th style="text-align:center;"><font size="4">Date</font></th>
+        <!--<th style="text-align:center;"><font size="4">Name</font></th>-->
+        <th style="text-align:center;"><font size="4">Time In</font></th>
+        <th style="text-align:center;"><font size="4">Time Out</font></th>
+      </tr>
 
-<div class="" style="clear:both;">
+      {% for i in table %}
+      <tr>
+        <td><font size="3">{{i.Date}}</font></td>
+        <!--<td><font size="3">{{i.FirstName + ' ' + i.LastName}}</font></td>-->
+        <td><font size="3">{{i.Time_In}}</font></td>
+        <td><font size="3">{{i.Time_Out}}</font></td>
+        <td><a href="edit_time/{{i.time_id}}" class="btn btn-default pull-right text-light"><strong>Edit</strong></a></td>
+        <td>
+           <form action="{{url_for('delete_time', time_id=i.time_id)}}" method="post">
+             <input type="hidden" name="_method" value="DELETE">
+             <!--added onclick delete confirmation-->
+             <input type="submit" value="Delete" onclick="return confirm('Are you sure you want to delete this entry?');" class="btn btn-danger">
+           </form>
+         </td>
+      </tr>
+      {% endfor %}
 
-  <br>
-  <pre class="tab">&nbsp; {{table}}</pre>
+    </table>
+
+  {% else %}
+    <br>
+     <h2 align="center">That's awkward. There's nothing here....</h2>
+     <h3>...</h3>
+     <h4>..</h4>
+     <h5>.</h5>
+   {% endif %}
 </div>
 
 {% endblock body %}

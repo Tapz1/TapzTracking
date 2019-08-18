@@ -1,0 +1,30 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <h1><strong>Edit Account Info</strong></h1>
+    <hr>
+    <br>
+    <br>
+    {% from "includes/_formhelpers.html" import render_field %}
+    <form method="POST" action="" align="center">
+        <div class="form-group" align="center">
+            <div class="row">
+                <label class="col-sm-4"> <!-- first name input -->
+                  {{render_field(form.fname, class="form-control", type="text")}}
+                </label>
+                <label class="col-sm-4"> <!-- last name input -->
+                    {{render_field(form.lname, class="form-control", type="text")}}
+                </label>
+
+              <!--  <label class="col-sm-4"> <!-- email input -->
+            <!--        {{render_field(form.email, class="form-control", type="text")}}
+            <!--    </label>-->
+
+            </div>
+        </div>
+        <br>
+        <p><input type="Submit" name="update" onclick="return confirm('Are you sure you want to change this information?');" class="btn btn-danger" value="Update"></p>
+    </form>
+
+
+{% endblock %}

@@ -8,7 +8,6 @@ app.secret_key = secret_key.secret_key
 # Configure this environment variable via app.yaml
 #CLOUD_STORAGE_BUCKET = os.environ['CLOUD_STORAGE_BUCKET']
 
-
 # Config  MySQL
 app.config['MYSQL_UNIX_SOCKET'] = str(db.MYSQL_UNIX_SOCKET)
 app.config['MYSQL_HOST'] = str(db.MYSQL_HOST)
@@ -20,9 +19,9 @@ app.config['MYSQL_CURSORCLASS'] = str(db.MYSQL_CURSORCLASS)
 # init MYSQL
 mysql = MySQL(app)
 
-now = datetime.now()
-todays_date = now.strftime("%m/%d/%Y")
-sql_format = now.strftime("%Y-%m-%d")
+#now = datetime.utcnow()
+#todays_date = now.strftime("%m/%d/%Y")
+#sql_format = now.strftime("%Y-%m-%d")
 
 
 # @ signifies a decorator - way to wrap a function and modifying its behavior
@@ -68,28 +67,36 @@ def is_logged_in(f):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm(request.form)
+    fname = form.fname.data
+    lname = form.lname.data
+    email = form.email.data
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+
     if request.method == 'POST' and form.validate():
-        fname = form.fname.data
-        lname = form.lname.data
-        email = form.email.data
+        # checks if email is already used
+        cur.execute("SELECT COUNT(*) AS 'count' FROM users WHERE email = %s", [email])
+        email_count = cur.fetchone()
+        count = int(email_count['count'])
+        if count < 1:
+            password = sha256_crypt.encrypt(str(form.password.data))
 
-        password = sha256_crypt.encrypt(str(form.password.data))
+            # Executes the query statement
+            cur.execute("INSERT INTO users(fname, lname, email, password) VALUES(%s, %s, %s, %s)", (fname, lname, email, password))
 
-        # Create cursor
-        cur = mysql.connection.cursor()
+            # commit to DB
+            mysql.connection.commit()
 
-        # Executes the query statement
-        cur.execute("INSERT INTO users(fname, lname, email, password) VALUES(%s, %s, %s, %s)", (fname, lname, email, password))
+            # close connection
+            cur.close()
 
-        # commit to DB
-        mysql.connection.commit()
+            flash('You are now officially registered and can login!', 'success')
 
-        # close connection
-        cur.close()
-
-        flash('You are now officially registered and can login!', 'success')
-
-        return redirect(url_for('login'))
+            return redirect(url_for('login'))
+        else:
+            error = 'Email already in use!'
+            return render_template('register.html', error=error, form=form)
 
     return render_template('register.html', form=form, title='Register!')
 
@@ -138,12 +145,65 @@ def login():
 
     return render_template('login.html', title='Login')
 
+@app.route('/account', methods=['GET', 'POST'])
+@is_logged_in
+def account():
+    cur = mysql.connection.cursor()
+    current_email = session.get("email")
+    cur.execute("SELECT user_id FROM users WHERE email = %s", [current_email])
+    data_userid = cur.fetchone()
+    userid_session = str(data_userid['user_id'])
+
+    cur.execute("SELECT * FROM users WHERE user_id = %s", [userid_session])
+    user_info = list(cur.fetchall())
+
+    return render_template("account.html", table=user_info)
+
+
+#@app.route('/edit_account/<string:user_id>', methods=['GET', 'POST'])
+#@is_logged_in
+def edit_account(user_id):
+    """work in progress
+    when submitting data to be changed, the data reverts back"""
+    cur = mysql.connection.cursor()
+    form = RegisterForm(request.form)
+
+
+    cur.execute("SELECT * FROM users WHERE user_id = %s", [user_id])
+    data = cur.fetchone()
+
+    # populate form fields
+    form.fname.data = data['fname']
+    form.lname.data = data['lname']
+    #form.email.data = data['email']
+
+    if request.method == 'POST' and form.validate():
+        fname = str(request.form['fname'])
+        lname = str(request.form['lname'])
+        #email = request.form['email']
+        # execute time info into database
+        cur.execute("UPDATE users SET fname=%s, lname=%s WHERE user_id = %s", [fname, lname, user_id])
+
+        # commit to DB
+        mysql.connection.commit()
+        # close the connection
+        cur.close()
+
+        flash("User Info Updated!", 'success')
+        print("Data Received!")
+        return redirect(url_for('account.html'))
+    return render_template('edit_account.html', form=form)
+
 
 @app.route('/time_entry', methods=['GET', 'POST'])
 @is_logged_in
 def time_entry():
     cur = mysql.connection.cursor()
     form = TimeEntry_Form(request.form)
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
 
     current_email = session.get("email")
     # selects corresponding username data from DB
@@ -157,6 +217,19 @@ def time_entry():
     fname_session = str(data_fname['fname'])
     lname_session = str(data_lname['lname'])
     userid_session = str(data_userid['user_id'])
+
+    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date = CURDATE()", [userid_session])
+    user_time_list = list(cur.fetchall())
+
+    total_hours = float(0)
+
+    for row in user_time_list:
+        a = row['Time_In']
+        b = row['Time_Out']
+        time_in = datetime.strptime(a, '%H:%M')
+        time_out = datetime.strptime(b, '%H:%M')
+        time_diff = float((time_out - time_in).seconds)
+        total_hours += (time_diff / 3600)
 
     if request.method == 'POST' and form.validate():
         date = form.date_form.data
@@ -172,7 +245,57 @@ def time_entry():
 
         flash("Time entry submitted!", 'success')
         print("Entry Received!")
-    return render_template('time.html', title='Time Entry', form=form, name_greet=fname_session, date=todays_date)
+        return redirect(url_for('time_entry'))
+    return render_template('time.html', title='Time Entry', form=form, name_greet=fname_session, date=todays_date, total_hours=round(total_hours, 2), table=user_time_list)
+
+
+@app.route('/edit_time/<string:time_id>', methods=['GET', 'POST'])
+@is_logged_in
+def edit_time(time_id):
+    cur = mysql.connection.cursor()
+    form = TimeEntry_Form(request.form)
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
+
+    result = cur.execute("SELECT * FROM time_entry WHERE time_id = %s", [time_id])
+    entry = cur.fetchone()
+
+    # populate form fields
+    form.date_form.data = entry['Date']
+    form.time_in_form.data = entry['Time_In']
+    form.time_out_form.data = entry['Time_Out']
+
+    if request.method == 'POST' and form.validate():
+        date = request.form['date_form']
+        time_in = request.form['time_in_form']
+        time_out = request.form['time_out_form']
+        # execute time info into database
+        cur.execute("UPDATE time_entry SET Date=%s, Time_In=%s, Time_Out=%s WHERE time_id = %s", [date, time_in, time_out, time_id])
+
+        # commit to DB
+        mysql.connection.commit()
+        # close the connection
+        cur.close()
+
+        flash("Time Entry Updated!", 'success')
+        print("Entry Received!")
+        return redirect(url_for('time_entry'))
+    return render_template('edit_time.html', form=form, date=todays_date)
+
+@app.route('/delete_time/<string:time_id>', methods=['POST'])
+@is_logged_in
+def delete_time(time_id):
+    cur = mysql.connection.cursor()
+
+    cur.execute("DELETE FROM time_entry WHERE time_id = %s", [time_id])
+    mysql.connection.commit()
+    cur.close()
+
+    flash('Entry Deleted', 'success')
+
+    return redirect(url_for('time_entry'))
 
 
 @app.route("/sales_entry", methods=['GET', 'POST'])
@@ -181,6 +304,11 @@ def sales_entry():
     """Needs similar formatting to time_entry function"""
 
     cur = mysql.connection.cursor()
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
+
     form = SalesEntryForm(request.form)
 
     current_email = session.get("email")
@@ -196,23 +324,75 @@ def sales_entry():
     lname_session = str(data_lname['lname'])
     userid_session = str(data_userid['user_id'])
 
+    # sidebar data_rev
+    ## triple plays
+    cur.execute("SELECT COUNT(sale_id) as 'Triple Plays' FROM sales_entry WHERE (vid_unit>0 AND hsd_unit>0 AND voice_unit>0 AND user_id= %s AND Date = CURDATE())", [userid_session])
+    data_tp = cur.fetchone()
+    triple_plays = data_tp['Triple Plays']
+    ## double plays
+    cur.execute("SELECT COUNT(sale_id) as 'Double Plays' FROM sales_entry WHERE (vid_unit>0 AND hsd_unit>0 AND voice_unit=0 AND user_id= %s AND Date = CURDATE()) OR (vid_unit>0 AND hsd_unit=0 AND voice_unit>0 AND user_id= %s AND Date = CURDATE()) OR (vid_unit=0 AND hsd_unit>0 AND voice_unit>0 AND user_id= %s AND Date = CURDATE())", [userid_session, userid_session, userid_session])
+    data_dp = cur.fetchone()
+    double_plays = data_dp['Double Plays']
+    ## single plays
+    cur.execute("SELECT COUNT(sale_id) as 'Single Plays' FROM sales_entry WHERE (vid_unit>0 AND hsd_unit=0 AND voice_unit=0 AND user_id= %s AND Date = CURDATE()) OR (vid_unit=0 AND hsd_unit>0 AND voice_unit=0 AND user_id= %s AND Date = CURDATE()) OR (vid_unit=0 AND hsd_unit=0 AND voice_unit>0 AND user_id= %s AND Date = CURDATE())", [userid_session, userid_session, userid_session])
+    data_sp = cur.fetchone()
+    single_plays = data_sp['Single Plays']
+    ## total sales
+    cur.execute("SELECT COUNT(*) AS 'Total Sales' FROM sales_entry WHERE user_id = %s AND Date = CURDATE()", [userid_session])
+    sale_count = cur.fetchone()
+    total_sales = int(sale_count['Total Sales'])
+
+    cur.execute("SELECT * FROM sales_entry WHERE user_id = %s AND Date = CURDATE()", [userid_session])
+    sales_data = list(cur.fetchall())
+
+    total_vids = 0
+    total_hsd = 0
+    total_voice = 0
+    total_rev = (0)
+    for row in sales_data:
+        a = int(row['vid_unit'])
+        total_vids += a
+    for row in sales_data:
+        b = int(row['hsd_unit'])
+        total_hsd += b
+    for row in sales_data:
+        c = int(row['voice_unit'])
+        total_voice += c
+    for row in sales_data:
+        d = float(row['revenue'])
+        total_rev += d
+    total_units = total_vids + total_hsd + total_voice
+    # percentages
+    if total_sales <= 0:
+        vid_attach = 0
+        tp_percent = 0
+        dp_percent = 0
+        sp_percent = 0
+    elif total_sales >= 1:
+        vid_attach = round((float(total_vids) / total_sales) * 100, 2)
+        tp_percent = round((float(triple_plays) / total_sales) * 100, 2)
+        dp_percent = round((float(double_plays) / total_sales) * 100, 2)
+        sp_percent = round((float(single_plays) / total_sales) * 100, 2)
+
+    # date = form.date.data
+    vid_unit = form.vid_unit.data
+    hsd_unit = form.hsd_unit.data
+    voice_unit = form.voice_unit.data
+    revenue = form.revenue.data
+    chat_id = form.chat_id.data
+    cust_id = form.cust_id.data
+    comment = form.comment.data
+
     if request.method == 'POST' and form.validate():
-        # date = form.date.data
-        vid_unit = form.vid_unit.data
-        hsd_unit = form.hsd_unit.data
-        voice_unit = form.voice_unit.data
-        revenue = form.revenue.data
-        chat_id = form.chat_id.data
-        cust_id = form.cust_id.data
-        comment = form.comment.data
 
-        cur.execute("INSERT INTO sales_entry(user_id, Date, FirstName, LastName, vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (userid_session, sql_format, fname_session, userid_session, vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment))
+        cur.execute("INSERT INTO sales_entry(user_id, Date, FirstName, LastName, vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment) VALUES(%s, CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s)", (userid_session, fname_session, lname_session, vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment))
         mysql.connection.commit()
+
         cur.close()
-
         flash("Sale Entered!", "success")
+        return redirect(url_for('sales_entry'))
 
-    return render_template("sales_entry.html", title="Sales Entry", form=form, name_greet=fname_session, date=todays_date)
+    return render_template("sales_entry.html", title="Sales Entry", form=form, name_greet=fname_session, date=todays_date, total_units=total_units, total_vids=total_vids, total_hsd=total_hsd, total_voice=total_voice, total_rev=round(total_rev, 2), vid_attach=vid_attach, sp_percent=sp_percent, dp_percent=dp_percent, tp_percent=tp_percent, table=sales_data)
 
 @app.route("/view_sales", methods=['GET', 'POST'])
 def view_sales():
@@ -223,6 +403,11 @@ def view_sales():
 
     #
     cur = mysql.connection.cursor()
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
+
     search = ViewTime_Form(request.form)
 
     # gets the current logged-in username
@@ -238,7 +423,24 @@ def view_sales():
     date_from = search.date_from.data
     date_to = search.date_to.data
 
-    cur.execute("SELECT * FROM sales_entry WHERE Date >= %s AND  Date <= %s", [date_from, date_to])
+    ## triple plays
+    cur.execute("SELECT COUNT(sale_id) as 'Triple Plays' FROM sales_entry WHERE (vid_unit>0 AND hsd_unit>0 AND voice_unit>0 AND user_id= %s AND Date >= %s AND Date <= %s)", [userid_session, date_from, date_to])
+    data_tp = cur.fetchone()
+    triple_plays = data_tp['Triple Plays']
+    ## double plays
+    cur.execute("SELECT COUNT(sale_id) as 'Double Plays' FROM sales_entry WHERE (vid_unit>0 AND hsd_unit>0 AND voice_unit=0 AND user_id= %s AND Date >= %s AND Date <= %s) OR (vid_unit>0 AND hsd_unit=0 AND voice_unit>0 AND user_id= %s AND Date >= %s AND Date <= %s) OR (vid_unit=0 AND hsd_unit>0 AND voice_unit>0 AND user_id= %s AND Date >= %s AND Date <= %s)", [userid_session, date_from, date_to, userid_session, date_from, date_to, userid_session, date_from, date_to])
+    data_dp = cur.fetchone()
+    double_plays = data_dp['Double Plays']
+    ## single plays
+    cur.execute("SELECT COUNT(sale_id) as 'Single Plays' FROM sales_entry WHERE (vid_unit>0 AND hsd_unit=0 AND voice_unit=0 AND user_id= %s AND Date >= %s AND Date <= %s) OR (vid_unit=0 AND hsd_unit>0 AND voice_unit=0 AND user_id= %s AND Date >= %s AND Date <= %s) OR (vid_unit=0 AND hsd_unit=0 AND voice_unit>0 AND user_id= %s AND Date >= %s AND Date <= %s)", [userid_session, date_from, date_to, userid_session, date_from, date_to, userid_session, date_from, date_to])
+    data_sp = cur.fetchone()
+    single_plays = data_sp['Single Plays']
+    ## total sales
+    cur.execute("SELECT COUNT(*) AS 'Total Sales' FROM sales_entry WHERE user_id = %s AND Date >= %s AND Date <= %s", [userid_session, date_from, date_to])
+    sale_count = cur.fetchone()
+    total_sales = int(sale_count['Total Sales'])
+
+    cur.execute("SELECT * FROM sales_entry WHERE user_id = %s AND Date >= %s AND  Date <= %s", [userid_session, date_from, date_to])
     sales_data = list(cur.fetchall())
 
     total_vids = 0
@@ -246,34 +448,97 @@ def view_sales():
     total_voice = 0
     total_rev = (0)
     for row in sales_data:
-        a = row['vid_unit']
+        a = int(row['vid_unit'])
         total_vids += a
     for row in sales_data:
-        b = row['hsd_unit']
+        b = int(row['hsd_unit'])
         total_hsd += b
     for row in sales_data:
-        c = row['voice_unit']
+        c = int(row['voice_unit'])
         total_voice += c
     for row in sales_data:
-        d = row['revenue']
+        d = float(row['revenue'])
         total_rev += d
     total_units = total_vids + total_hsd + total_voice
 
-
-    table = SalesTable(sales_data, no_items="No sales yet. Start selling something!!", )
-    table.border = True
-    table.html_attrs = {"align":"center", "style":"font-family:Tahoma; width:100%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black"}
-    table.classes = ["lead"]
-
+    # percentages
+    if total_sales <= 0:
+        vid_attach = 0
+        tp_percent = 0
+        dp_percent = 0
+        sp_percent = 0
+    elif total_sales >= 1:
+        vid_attach = round((float(total_vids) / total_sales) * 100, 2)
+        tp_percent = round((float(triple_plays) / total_sales) * 100, 2)
+        dp_percent = round((float(double_plays) / total_sales) * 100, 2)
+        sp_percent = round((float(single_plays) / total_sales) * 100, 2)
 
     if request.method == 'POST':
         if "search" in request.form:
-            return render_template('view_sales.html', form=search, name_greet=fname_session, user_id=userid_session, date=todays_date, table=table, total_vids=total_vids, total_hsd=total_hsd, total_voice=total_voice, total_units=total_units, total_rev=float(total_rev))
+            return render_template('view_sales.html', form=search, name_greet=fname_session, user_id=userid_session, date=todays_date, table=sales_data, total_vids=total_vids, total_hsd=total_hsd, total_voice=total_voice, total_units=total_units, total_rev=round(total_rev,2), vid_attach=vid_attach, sp_percent=sp_percent, dp_percent=dp_percent, tp_percent=tp_percent)
         elif "download" in request.form:
             return download_sales_entry(userid_session, date_from, date_to)
 
     cur.close()
     return render_template('view_sales.html', form=search, name_greet=fname_session, user_id=userid_session, date=todays_date)
+
+
+@app.route('/edit_sale/<string:sale_id>', methods=['GET', 'POST'])
+@is_logged_in
+def edit_sale(sale_id):
+    cur = mysql.connection.cursor()
+    form = SalesEntryForm(request.form)
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
+
+    result = cur.execute("SELECT * FROM sales_entry WHERE sale_id = %s", [sale_id])
+    entry = cur.fetchone()
+
+    # populate form fields
+    form.vid_unit.data = str(entry['vid_unit'])
+    form.hsd_unit.data = str(entry['hsd_unit'])
+    form.voice_unit.data = str(entry['voice_unit'])
+    form.revenue.data = str(entry['revenue'])
+    form.chat_id.data = entry['chat_id']
+    form.cust_id.data = entry['cust_id']
+    form.comment.data = entry['comment']
+
+    if request.method == 'POST' and form.validate():
+        vid_unit = request.form['vid_unit']
+        hsd_unit = request.form['hsd_unit']
+        voice_unit = request.form['voice_unit']
+        revenue = request.form['revenue']
+        chat_id = request.form['chat_id']
+        cust_id = request.form['cust_id']
+        comment = request.form['comment']
+
+        cur.execute("UPDATE sales_entry SET vid_unit=%s, hsd_unit=%s, voice_unit=%s, revenue=%s, chat_id=%s, cust_id=%s, comment=%s WHERE sale_id=%s", [vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment, sale_id])
+        mysql.connection.commit()
+
+        cur.close()
+        flash("Sale Updated!", "success")
+
+        return redirect(url_for('view_sales'))
+
+    return render_template("edit_sale.html", form=form, date=todays_date)
+
+
+@app.route('/delete_sale/<string:sale_id>', methods=['POST'])
+@is_logged_in
+def delete_sale(sale_id):
+    """delete sales by sale_id"""
+    cur = mysql.connection.cursor()
+
+    cur.execute("DELETE FROM sales_entry WHERE sale_id = %s", [sale_id])
+    mysql.connection.commit()
+    cur.close()
+
+    flash('Entry Deleted', 'success')
+
+    return redirect(url_for('sales_entry'))
+
 
 # log out
 @app.route('/logout')
@@ -296,6 +561,11 @@ def logout():
 def view_time():
     """This function allows the user to view their time entry from a chosen time period"""
     cur = mysql.connection.cursor()
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
+
     search = ViewTime_Form(request.form)
 
     # gets the current logged-in username
@@ -314,28 +584,23 @@ def view_time():
     cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s", [userid_session, date_from, date_to])
     user_time_list = list(cur.fetchall())
 
-    total_hours = 0
+    total_hours = float(0)
 
     for row in user_time_list:
         a = row['Time_In']
         b = row['Time_Out']
         time_in = datetime.strptime(a, '%H:%M')
         time_out = datetime.strptime(b, '%H:%M')
-        time_diff = abs((time_out - time_in).seconds)
+        time_diff = float((time_out - time_in).seconds)
         total_hours += (time_diff / 3600)
-
-    table = ResultTable(user_time_list, no_items="There's NOTHING")
-    table.border = True
-    #table.get_tr_attrs = {"align":"text-center"}
-    table.html_attrs = {"align":"center", "style":"font-family:Tahoma; width:80%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black"}
-    table.classes = ["lead"]
 
 
     if request.method == 'POST':
         if "search" in request.form:
-            return render_template('view_time.html', form=search, name_greet=fname_session, user_id=userid_session, date=todays_date, table=table, total=round(total_hours,2))
+            return render_template('view_time.html', form=search, name_greet=fname_session, user_id=userid_session, date=todays_date, table=user_time_list, total=round(total_hours, 2))
         elif "download" in request.form:
             return download_time_entry(userid_session, date_from, date_to)
+
 
     cur.close()
     return render_template('view_time.html', form=search, name_greet=fname_session, user_id=userid_session, date=todays_date)
@@ -346,6 +611,11 @@ def view_time():
 def employee_time():
     """This function displays a list of assigned users and can view time entry for a chosen user from the list"""
     cur = mysql.connection.cursor()
+
+    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
+    data_date = cur.fetchone()
+    todays_date = data_date["Todays Date"]
+
     search = ViewTime_Form(request.form)
     user_lookup = search.user_lookup.data
     # gets the current logged-in username
@@ -378,15 +648,9 @@ def employee_time():
         time_diff = abs((time_out - time_in).seconds)
         total_hours += (time_diff / 3600)
 
-    table = ResultTable(user_time_list, no_items="There's NOTHING", )
-    table.border = True
-    table.html_attrs = {"align":"center", "style":"font-family:Tahoma; background-color: #228228228; box-shadow:5px 5px 10px black"}
-    table.classes = ["lead"]
-
-
     if request.method == 'POST':
         if "search" in request.form:
-            return render_template('employee_time.html', form=search, name_greet=fname_session, user_id=user_lookup, date=todays_date, table=table, total=round(total_hours,2), user_list=employee_list)
+            return render_template('employee_time.html', form=search, name_greet=fname_session, user_id=user_lookup, date=todays_date, table=user_time_list, total=round(total_hours,2), user_list=employee_list)
         elif "download" in request.form:
             return download_file(user_lookup, date_from, date_to)
 

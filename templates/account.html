@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <h1>Account Info</h1>
+    <hr>
+    <h3 class="font-weight-lighter">Shhh! This is your account information.<br>We're looking to add the ability to change this data in a future update</h3>
+    <br>
+
+    <table class="table table-hover table-dark" align="center" style="font-family:Tahoma; width:90%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
+      <tr>
+        <th style="text-align:center;"><font size="4">First Name</font></th>
+        <th style="text-align:center;"><font size="4">Last Name</font></th>
+      <th style="text-align:center;"><font size="4">Email</font></th>
+      </tr>
+
+      {% for i in table %}
+        <tr>
+          <td><font size="3">{{i.fname}}</font></td>
+          <td><font size="3">{{i.lname}}</font></td>
+        <td><font size="3">{{i.email}}</font></td>
+<!--
+          <td><a href="edit_account/{{i.user_id}}" class="btn btn-default pull-right text-light" name="account"><strong>Edit</strong></a></td>
+          -->
+        </tr>
+    </table>
+    {% endfor %}
+
+{% endblock %}

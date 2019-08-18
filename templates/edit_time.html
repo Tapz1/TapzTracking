@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <p class="lead" align="right">Today's date: {{ date }}</p>
+    <h1><strong>Edit Time Entry</strong></h1>
+    <br>
+    <br>
+    {% from "includes/_formhelpers.html" import render_field %}
+    <form method="POST" action="" align="center">
+        <div class="form-group" align="center">
+            <div class="row">
+                <label class="col-sm-4"> <!-- Date input -->
+                  {{render_field(form.date_form, class="form-control", type="date")}}
+                </label>
+                <label class="col-sm-4"> <!-- Time input -->
+                    {{render_field(form.time_in_form, class="form-control", type="time")}}
+                </label>
+                <label class="col-sm-4"> <!-- Time input -->
+                    {{render_field(form.time_out_form, class="form-control", type="time")}}
+                </label>
+            </div>
+        </div>
+        <br>
+        <p><input type="Submit" name="update" class="btn btn-primary" value="Submit"></p>
+    </form>
+
+
+{% endblock %}
