@@ -1,3 +1,5 @@
+<!-- This is a work in progess. Currently has flaw where anyone can just change the user_id in the address bar and can change/see another user's data -->
+
 {% extends 'layout.html' %}
 
 {% block body %}
@@ -15,10 +17,6 @@
                 <label class="col-sm-4"> <!-- last name input -->
                     {{render_field(form.lname, class="form-control", type="text")}}
                 </label>
-
-              <!--  <label class="col-sm-4"> <!-- email input -->
-            <!--        {{render_field(form.email, class="form-control", type="text")}}
-            <!--    </label>-->
 
             </div>
         </div>

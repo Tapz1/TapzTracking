@@ -18,12 +18,19 @@
       <li class="nav-item">
         <a class="nav-link text-light" href="/about">About</a>
       </li>
+    {% if session.logged_in %}
+      <li class="nav-item">
+        <a class="nav-link text-light" href="/dashboard">Dashboard</a>
+      </li>
+    {% else %}
+    {% endif %}
     </ul>
 
     <ul class="navbar-nav">
 
     {% if session.logged_in %}
     <!-- Dropdown -->
+  {% if session.Admin %}
     <li class="nav-item dropdown">
       <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
         Sales
@@ -33,6 +40,8 @@
         <a class="dropdown-item text-light" href="/view_sales">View Sales</a>
       </div>
     </li>
+  {% else %}
+  {% endif %}
     <!-- Dropdown -->
     <li class="nav-item dropdown">
       <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
@@ -55,7 +64,7 @@
     </li>
     {% else %}
       <li class="nav-item text-light">
-        <a class="nav-link" href="/register">Register</a>
+        <a class="nav-link text-light" href="/register">Register</a>
       </li>
       <li class="nav-item">
         <a class="nav-link text-light" href="/login">Login</a>

@@ -5,16 +5,30 @@ from project_lib import *
 
 # for registration page
 class RegisterForm(Form):
-    fname = StringField('First Name', [validators.Length(min=1, max=50)])
-    lname = StringField('Last Name', [validators.Length(min=1, max=50)])
-    email = StringField('Email', [validators.DataRequired(), validators.Length(min=6, max=50)])
+    fname = StringField('First Name', [validators.Length(min=1, max=20)])
+    lname = StringField('Last Name', [validators.Length(min=1, max=20)])
+    email = StringField('Email', [validators.DataRequired(), validators.Email(message='Must be a valid email address')])
     # group_name = StringField('Group Name (if applicable)', [validators.Length(min=4, max=25)])
     password = PasswordField('Password', [
         validators.DataRequired(),
-        validators.EqualTo('confirm', message="Passwords don't match!")
+        validators.EqualTo('confirm', message="Passwords don't match!"),
+        validators.Length(min=8)
     ])
     confirm = PasswordField('Confirm Password')
 
+
+class ResetPassword(Form):
+    password = PasswordField('Password', [
+        validators.DataRequired(),
+        validators.EqualTo('confirm', message="Passwords don't match!"),
+        validators.Length(min=8)
+    ])
+    confirm = PasswordField('Confirm Password')
+
+
+class EditAccount(Form):
+    fname = StringField('First Name', [validators.Length(min=1, max=20)])
+    lname = StringField('Last Name', [validators.Length(min=1, max=20)])
 
 
 class TimeEntry_Form(Form):

@@ -1,9 +1,13 @@
 from project_lib import *
-import secret_key
+import secrets
+import mail_credentials as mc
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 
-app.secret_key = secret_key.secret_key
+app.secret_key = secrets.SECRET_KEY
+
+app.config['SECURITY_PASSWORD_SALT'] = secrets.SECURITY_PASSWORD_SALT
 
 # Configure this environment variable via app.yaml
 #CLOUD_STORAGE_BUCKET = os.environ['CLOUD_STORAGE_BUCKET']
@@ -16,24 +20,75 @@ app.config['MYSQL_PASSWORD'] = str(db.MYSQL_PASSWORD)
 app.config['MYSQL_DB'] = str(db.MYSQL_DB)
 app.config['MYSQL_CURSORCLASS'] = str(db.MYSQL_CURSORCLASS)
 
+# Flask Mail
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_DEBUG'] = True
+app.config['MAIL_USERNAME'] = mc.USERNAME
+app.config['MAIL_PASSWORD'] = mc.PASSWORD
+app.config['MAIL_DEFAULT_SENDER'] = mc.USERNAME
+app.config['MAIL_MAX_EMAILS'] = None
+app.config['MAIL_ASCII_ATTACHMENTS'] = False
+
 # init MYSQL
 mysql = MySQL(app)
+mail = Mail(app)
 
 #now = datetime.utcnow()
 #todays_date = now.strftime("%m/%d/%Y")
 #sql_format = now.strftime("%Y-%m-%d")
 
 
+"""sends email"""
+def send_email(email, subject, template):
+    msg = Message(
+        subject=subject,
+        recipients=[email],
+        html=template
+    )
+    mail.send(msg)
+    return 'Confirmation Email Has Been Sent!'
+
+
+def generate_confirmation_token(email):
+    """generates unique token"""
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    return serializer.dumps(email, salt=app.config['SECURITY_PASSWORD_SALT'])
+
+def confirm_token(token, expiration=3600):
+    """confirms the token sent back"""
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(
+            token,
+            salt=app.config['SECURITY_PASSWORD_SALT'],
+            max_age=expiration
+        )
+    except:
+        return False
+    return email
+
+
 # @ signifies a decorator - way to wrap a function and modifying its behavior
 
-@app.route("/")
-def index():
-    return render_template('home.html')
+def check_confirmed(f):
+    """prevents user if email hasn't been confirmed"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # checks if confirmed email
+        cur = mysql.connection.cursor()
+        current_email = session.get("email")
+        cur.execute("SELECT confirmed FROM users WHERE email = %s", [current_email])
+        data_confirm = cur.fetchone()
+        confirmed_email = str(data_confirm['confirmed'])
+        if "0" in confirmed_email:  # 0 in Boolean is False, 1 is True
+            flash('Please confirm your account!', 'warning')
+            return redirect(url_for('unconfirmed'))
+        return f(*args, **kwargs)
 
-
-@app.route("/about")
-def about():
-    return render_template('about.html', title='About')
+    return decorated_function
 
 
 # checks if user logged in
@@ -63,6 +118,16 @@ def is_logged_in(f):
     return wrap
 
 
+@app.route("/")
+def index():
+    return render_template('home.html')
+
+
+@app.route("/about")
+def about():
+    return render_template('about.html', title='About')
+
+
 # user registration
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -83,10 +148,16 @@ def register():
             password = sha256_crypt.encrypt(str(form.password.data))
 
             # Executes the query statement
-            cur.execute("INSERT INTO users(fname, lname, email, password) VALUES(%s, %s, %s, %s)", (fname, lname, email, password))
+            cur.execute("INSERT INTO users(fname, lname, email, password, confirmed) VALUES(%s, %s, %s, %s, False)", (fname, lname, email, password))
 
             # commit to DB
             mysql.connection.commit()
+
+            token = generate_confirmation_token(email)
+            confirm_url = url_for('confirm_email', token=token, _external=True)
+            html = render_template('confirm_email.html', confirm_url=confirm_url)
+            subject = "You're almost done, %s. Confirm your email!" % (fname)
+            send_email(email, subject, html)
 
             # close connection
             cur.close()
@@ -99,6 +170,55 @@ def register():
             return render_template('register.html', error=error, form=form)
 
     return render_template('register.html', form=form, title='Register!')
+
+
+@app.route('/confirm/<token>')
+@is_logged_in
+def confirm_email(token):
+    cur = mysql.connection.cursor()
+    current_email = session.get("email")
+    cur.execute("SELECT user_id FROM users WHERE email = %s", [current_email])
+    data_userid = cur.fetchone()
+    userid_session = str(data_userid['user_id'])
+    try:
+        email = confirm_token(token)
+    except:
+        flash('The confirmation link is invalid or has expired.', 'danger')
+
+    result = cur.execute("SELECT * FROM users WHERE email = %s", [email])
+
+    if result > 1:
+        flash('Account already confirmed! Go ahead and login!', 'success')
+    else:
+        cur.execute("UPDATE users SET confirmed = True WHERE user_id = %s", [userid_session])
+        mysql.connection.commit()
+        cur.close()
+        flash('You have confirmed your account. Thanks!', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/unconfirmed')
+@is_logged_in
+def unconfirmed():
+    return render_template('unconfirmed.html')
+
+
+@app.route('/resend')
+@is_logged_in
+def resend_confirmation():
+    cur = mysql.connection.cursor()
+    current_email = session.get("email")
+    cur.execute("SELECT * FROM users WHERE email = %s", [current_email])
+    user_data = cur.fetchone()
+    fname = str(user_data['fname'])
+
+    token = generate_confirmation_token(current_email)
+    confirm_url = url_for('confirm_email', token=token, _external=True)
+    html = render_template('confirm_email.html', confirm_url=confirm_url)
+    subject = "You're almost done, %s. Confirm your email!" % (fname)
+    send_email(current_email, subject, html)
+    flash('A new confirmation email has been sent.', 'success')
+    return redirect(url_for('unconfirmed'))
 
 
 # User login
@@ -131,8 +251,15 @@ def login():
                 if (email).lower() in admin_list:
                     session['Admin'] = True
 
-                flash('You are now logged in', 'success')
-                return redirect(url_for('dashboard'))
+                # checks if confirmed email
+                cur.execute("SELECT confirmed FROM users WHERE email = %s", [email])
+                data_confirm = cur.fetchone()
+                confirmed_email = str(data_confirm['confirmed'])
+                if "0" in confirmed_email:
+                    return redirect(url_for('unconfirmed'))
+                else:
+                    flash('You are now logged in', 'success')
+                    return redirect(url_for('dashboard'))
             else:
                 error = 'Invalid login'
                 return render_template('login.html', error=error)
@@ -145,6 +272,55 @@ def login():
 
     return render_template('login.html', title='Login')
 
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    cur = mysql.connection.cursor()
+    form = RegisterForm(request.form)
+
+    if request.method == 'POST':
+        email = request.form['email']
+        cur.execute("SELECT COUNT(*) AS 'count' FROM users WHERE email = %s", [email])
+        email_count = cur.fetchone()
+        count = int(email_count['count'])
+        if count >= 1:
+            token = generate_confirmation_token(email)
+            reset_url = url_for('reset_password', token=token, _external=True)
+            html = render_template('reset_link.html', reset_url=reset_url)
+            subject = "Password Reset"
+            send_email(email, subject, html)
+            flash('Reset link has been sent to your email', 'success')
+            return redirect(url_for('forgot_password'))
+        else:
+            error = 'No account associated with that email!'
+            return render_template('forgot_password.html', error=error, form=form)
+
+    return render_template("forgot_password.html", form=form)
+
+
+@app.route('/reset/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    cur = mysql.connection.cursor()
+    form = ResetPassword(request.form)
+
+    try:
+        email = confirm_token(token)
+    except:
+        flash('The confirmation link is invalid or has expired.', 'danger')
+
+    cur.execute("SELECT user_id FROM users WHERE email = %s", [email])
+    data_userid = cur.fetchone()
+    userid_session = str(data_userid['user_id'])
+    if request.method == 'POST' and form.validate():
+        password = sha256_crypt.encrypt(str(form.password.data))
+        cur.execute("UPDATE users SET password = %s WHERE user_id = %s", [password, userid_session])
+        mysql.connection.commit()
+        cur.close()
+        flash('You have successfully reset your password!', 'success')
+        return redirect(url_for('login'))
+    return render_template("reset_password.html", form=form)
+
+
 @app.route('/account', methods=['GET', 'POST'])
 @is_logged_in
 def account():
@@ -154,10 +330,15 @@ def account():
     data_userid = cur.fetchone()
     userid_session = str(data_userid['user_id'])
 
+    # checks if confirmed email
+    cur.execute("SELECT confirmed FROM users WHERE email = %s", [current_email])
+    data_confirm = cur.fetchone()
+    confirmed_email = str(data_confirm['confirmed'])
+
     cur.execute("SELECT * FROM users WHERE user_id = %s", [userid_session])
     user_info = list(cur.fetchall())
 
-    return render_template("account.html", table=user_info)
+    return render_template("account.html", table=user_info, confirmed=confirmed_email)
 
 
 #@app.route('/edit_account/<string:user_id>', methods=['GET', 'POST'])
@@ -166,7 +347,7 @@ def edit_account(user_id):
     """work in progress
     when submitting data to be changed, the data reverts back"""
     cur = mysql.connection.cursor()
-    form = RegisterForm(request.form)
+    form = EditAccount(request.form)
 
 
     cur.execute("SELECT * FROM users WHERE user_id = %s", [user_id])
@@ -191,12 +372,13 @@ def edit_account(user_id):
 
         flash("User Info Updated!", 'success')
         print("Data Received!")
-        return redirect(url_for('account.html'))
+        return redirect(url_for('account'))
     return render_template('edit_account.html', form=form)
 
 
 @app.route('/time_entry', methods=['GET', 'POST'])
 @is_logged_in
+@check_confirmed
 def time_entry():
     cur = mysql.connection.cursor()
     form = TimeEntry_Form(request.form)
@@ -284,6 +466,7 @@ def edit_time(time_id):
         return redirect(url_for('time_entry'))
     return render_template('edit_time.html', form=form, date=todays_date)
 
+
 @app.route('/delete_time/<string:time_id>', methods=['POST'])
 @is_logged_in
 def delete_time(time_id):
@@ -299,6 +482,8 @@ def delete_time(time_id):
 
 
 @app.route("/sales_entry", methods=['GET', 'POST'])
+@is_logged_in
+@check_confirmed
 def sales_entry():
     """page to add sales"""
     """Needs similar formatting to time_entry function"""
@@ -394,7 +579,10 @@ def sales_entry():
 
     return render_template("sales_entry.html", title="Sales Entry", form=form, name_greet=fname_session, date=todays_date, total_units=total_units, total_vids=total_vids, total_hsd=total_hsd, total_voice=total_voice, total_rev=round(total_rev, 2), vid_attach=vid_attach, sp_percent=sp_percent, dp_percent=dp_percent, tp_percent=tp_percent, table=sales_data)
 
+
 @app.route("/view_sales", methods=['GET', 'POST'])
+@is_logged_in
+@check_confirmed
 def view_sales():
     """To show sales in a table format"""
     """Top of page should show a dashboard of Total Units
@@ -440,7 +628,7 @@ def view_sales():
     sale_count = cur.fetchone()
     total_sales = int(sale_count['Total Sales'])
 
-    cur.execute("SELECT * FROM sales_entry WHERE user_id = %s AND Date >= %s AND  Date <= %s", [userid_session, date_from, date_to])
+    cur.execute("SELECT * FROM sales_entry WHERE user_id = %s AND Date >= %s AND  Date <= %s ORDER BY Date", [userid_session, date_from, date_to])
     sales_data = list(cur.fetchall())
 
     total_vids = 0
@@ -558,6 +746,7 @@ def logout():
 
 @app.route('/view_time', methods=['GET', 'POST'])
 @is_logged_in
+@check_confirmed
 def view_time():
     """This function allows the user to view their time entry from a chosen time period"""
     cur = mysql.connection.cursor()
@@ -581,7 +770,7 @@ def view_time():
     date_from = search.date_from.data
     date_to = search.date_to.data
 
-    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s", [userid_session, date_from, date_to])
+    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s ORDER BY Date", [userid_session, date_from, date_to])
     user_time_list = list(cur.fetchall())
 
     total_hours = float(0)
@@ -608,6 +797,7 @@ def view_time():
 
 @app.route('/employee_time', methods=['GET', 'POST'])
 @authorized
+@check_confirmed
 def employee_time():
     """This function displays a list of assigned users and can view time entry for a chosen user from the list"""
     cur = mysql.connection.cursor()
@@ -635,7 +825,7 @@ def employee_time():
     date_from = search.date_from.data
     date_to = search.date_to.data
 
-    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s", [user_lookup, date_from, date_to])
+    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s ORDER BY Date", [user_lookup, date_from, date_to])
     user_time_list = list(cur.fetchall())
 
     total_hours = 0
@@ -663,7 +853,7 @@ def download_time_entry(userid, date_from, date_to):
     """Download time entry as CSV"""
     cur = mysql.connection.cursor()
 
-    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s", [userid, date_from, date_to])
+    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date >= %s AND Date <= %s ORDER BY Date", [userid, date_from, date_to])
     user_time_list = list(cur.fetchall())
 
     def generate():
@@ -700,7 +890,7 @@ def download_sales_entry(userid, date_from, date_to):
     """Download the data for sales"""
     cur = mysql.connection.cursor()
 
-    cur.execute("SELECT * FROM sales_entry WHERE Date >= %s AND  Date <= %s", [date_from, date_to])
+    cur.execute("SELECT * FROM sales_entry WHERE Date >= %s AND  Date <= %s ORDER BY Date", [date_from, date_to])
     sales_data = list(cur.fetchall())
 
     def generate():
@@ -736,6 +926,7 @@ def download_sales_entry(userid, date_from, date_to):
 
 @app.route('/dashboard')
 @is_logged_in
+@check_confirmed
 def dashboard():
     cur = mysql.connection.cursor()
     current_email = session.get('email')
