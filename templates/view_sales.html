@@ -4,7 +4,7 @@
 <p class="lead" align="right"><strong>Today's date: {{ date }}</strong></p>
 
 {% from "includes/_formhelpers.html" import render_field %}
-<h1><strong>View Sales</strong></h1>
+<h1 class="display-4"><strong>View Sales</strong></h1>
 <hr>
 <h5 class="font-weight-lighter">{{ name_greet }}, here you can view your sales.</h5>
 
@@ -80,9 +80,7 @@
     {% else %}
     <br>
      <h2 align="center">That's awkward. There's nothing here....</h2>
-     <h3>...</h3>
-     <h4>..</h4>
-     <h5>.</h5>
+     
      {% endif %}
 </div>
 

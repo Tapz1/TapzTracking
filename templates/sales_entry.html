@@ -4,7 +4,7 @@
 
 
     <p class="lead" align="right"><strong>Today's date: {{ date }}</strong></p>
-    <h1><strong>Sales Entry</strong></h1>
+    <h1 class="display-4"><strong>Sales Entry</strong></h1>
     <hr>
     <h5 class="font-weight-lighter">{{ name_greet }}, here you can submit your sales throughout the day.</h5>
     <h2 align="right"><small>{{total_units}} units and ${{total_rev}} in revenue</small></h2>
@@ -15,17 +15,17 @@
         <div class="form-group" align="center">
             <div class="justify-content-center">
                 <label> <!-- vid input -->
-                  {{render_field(form.vid_unit, class="form-control", type="number", value="0", style='text-align:center; width: 40%;')}}
+                  {{render_field(form.vid_unit, class="form-control", type="number", value="0", min="0", style='text-align:center; width: 40%;')}}
                 </label>
                 <label> <!-- hsd input -->
-                    {{render_field(form.hsd_unit, class="form-control", type="number", value="0", style='text-align:center; width: 40%;')}}
+                    {{render_field(form.hsd_unit, class="form-control", type="number", value="0", min="0", style='text-align:center; width: 40%;')}}
                 </label>
 
                 <label> <!-- voice input -->
-                    {{render_field(form.voice_unit, class="form-control", type="number", value="0", style='text-align:center; width: 40%;')}}
+                    {{render_field(form.voice_unit, class="form-control", type="number", value="0", min="0", style='text-align:center; width: 40%;')}}
                 </label>
                 <label> <!-- revenue input -->
-                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", value="0", style='text-align:center; width: 40%;')}}
+                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", value="0", min="0", style='text-align:center; width: 40%;')}}
                 </label>
               <div class="" style="clear:both;">
                 <label> <!-- chat  ID input -->
@@ -96,7 +96,7 @@
 
           </table>
       {% else %}
-        <h2 align="center">No sales yet! Sell something will ya??</h2>
+        <h2 align="center">No sales yet!</h2>
         <hr>
       {% endif %}
 

@@ -3,7 +3,7 @@
 {% block body %}
 
     <p class="lead" align="right"><strong>Today's date: {{ date }}</strong></p>
-    <h1><strong>Time Entry</strong></h1>
+    <h1 class="display-4"><strong>Time Entry</strong></h1>
     <hr>
     <h5 class="font-weight-lighter">{{ name_greet }}, here you can submit your time entry.</h5>
     <br>
@@ -13,16 +13,23 @@
         <div class="form-group" align="center">
             <div class="row">
                 <label class="col-sm-4"> <!-- Date input -->
-                  {{render_field(form.date_form, class="form-control", type="date")}}
+                  {{render_field(form.date_form, class="form-control", type="date", value=html_date)}}
                 </label>
                 <label class="col-sm-4"> <!-- Time input -->
-                    {{render_field(form.time_in_form, class="form-control", type="time")}}
+                    {{render_field(form.time_in_form, class="form-control", type="time", value=html_time)}}
                 </label>
                 <label class="col-sm-4"> <!-- Time input -->
                     {{render_field(form.time_out_form, class="form-control", type="time")}}
                 </label>
             </div>
-        </div>
+            <div align="center">
+                <h3><small>Category</small></h3>
+                <select class="col-sm-4 form-control" value={{form.category_form}}>
+                  {% for category in categories %}
+                    <option>{{category}}</option>
+                  {% endfor %}
+                </select>
+            </div>
         <br>
         <p><input type="Submit" class="btn btn-primary" value="Submit"></p>
     </form>
@@ -38,14 +45,15 @@
             <!--<th style="text-align:center;"><font size="4">Name</font></th>-->
             <th style="text-align:center;"><font size="4">Time In</font></th>
             <th style="text-align:center;"><font size="4">Time Out</font></th>
+            <th style="text-align:center;"><font size="4">Category</font></th>
           </tr>
 
           {% for i in table %}
           <tr>
             <td><font size="3">{{i.Date}}</font></td>
-            <!--<td><font size="3">{{i.FirstName + ' ' + i.LastName}}</font></td>-->
             <td><font size="3">{{i.Time_In}}</font></td>
             <td><font size="3">{{i.Time_Out}}</font></td>
+            <td><font size="3">{{i.category}}</font></td>
             <td><a href="edit_time/{{i.time_id}}" class="btn btn-default pull-right text-light"><strong>Edit</strong></a></td>
             <td>
                <form action="{{url_for('delete_time', time_id=i.time_id)}}" method="post">
@@ -59,8 +67,8 @@
         </table>
 
       {% else %}
-        <h2 align="center">No time entered yet! Get working will ya??</h2>
+        <h2 align="center">No time entered yet!</h2>
         <hr>
       {% endif %}
-      
+
 {% endblock %}

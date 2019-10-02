@@ -41,6 +41,7 @@ mail = Mail(app)
 #sql_format = now.strftime("%Y-%m-%d")
 
 
+
 """sends email"""
 def send_email(email, subject, template):
     msg = Message(
@@ -91,8 +92,8 @@ def check_confirmed(f):
     return decorated_function
 
 
-# checks if user logged in
 def authorized(f):
+    """checks if user is labeled "Admin" in DB"""
     @wraps(f)
     def wrap(*args, **kwargs):
         cur = mysql.connection.cursor()
@@ -108,6 +109,7 @@ def authorized(f):
 
 
 def is_logged_in(f):
+    """checks if user logged in"""
     @wraps(f)
     def wrap(*args, **kwargs):
         if 'logged_in' in session:
@@ -115,6 +117,18 @@ def is_logged_in(f):
         else:
             flash('Unauthorized, Please login', 'danger')
             return redirect(url_for('login'))
+    return wrap
+
+
+def only_whenNotLoggedIn(f):
+    """only allows access if user isn't logged in"""
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if 'logged_in' not in session:
+            return f(*args, **kwargs)
+        else:
+            flash("You're already logged in!", 'danger')
+            return redirect(url_for('dashboard'))
     return wrap
 
 
@@ -128,9 +142,10 @@ def about():
     return render_template('about.html', title='About')
 
 
-# user registration
 @app.route('/register', methods=['GET', 'POST'])
+@only_whenNotLoggedIn
 def register():
+    """user registration"""
     form = RegisterForm(request.form)
     fname = form.fname.data
     lname = form.lname.data
@@ -221,9 +236,10 @@ def resend_confirmation():
     return redirect(url_for('unconfirmed'))
 
 
-# User login
 @app.route('/login', methods=['GET', 'POST'])
+@only_whenNotLoggedIn
 def login():
+    """user can log into account"""
     cur = mysql.connection.cursor()
     if request.method == 'POST':
 
@@ -259,7 +275,7 @@ def login():
                     return redirect(url_for('unconfirmed'))
                 else:
                     flash('You are now logged in', 'success')
-                    return redirect(url_for('dashboard'))
+                    return redirect(url_for('time_entry'))
             else:
                 error = 'Invalid login'
                 return render_template('login.html', error=error)
@@ -380,25 +396,31 @@ def edit_account(user_id):
 @is_logged_in
 @check_confirmed
 def time_entry():
+    """
+    user submits their time_entry
+    can also make a button to submit a timestamp
+    """
+    # time categories
+    categories = ["Time Worked", "Meeting", "Training", "Overtime", "Holiday"]
+
+    eastern = timezone('US/Eastern')
+    now = datetime.now(eastern)
+    todays_date = now.strftime("%m/%d/%Y")
+    html_date = now.strftime("%Y-%m-%d")
+    html_time = now.strftime("%H:%M")
+
     cur = mysql.connection.cursor()
     form = TimeEntry_Form(request.form)
 
-    cur.execute("SELECT DATE_FORMAT(CURDATE(), '%m/%d/%Y') as 'Todays Date' FROM sales_entry")
-    data_date = cur.fetchone()
-    todays_date = data_date["Todays Date"]
 
     current_email = session.get("email")
     # selects corresponding username data from DB
-    cur.execute("SELECT fname FROM users WHERE email = %s", [current_email])
-    data_fname = cur.fetchone()
-    cur.execute("SELECT lname FROM users WHERE email = %s", [current_email])
-    data_lname = cur.fetchone()
-    cur.execute("SELECT user_id FROM users WHERE email = %s", [current_email])
-    data_userid = cur.fetchone()
+    cur.execute("SELECT fname, lname, user_id FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
     # stores what was fetched from the SELECT statement into variables
-    fname_session = str(data_fname['fname'])
-    lname_session = str(data_lname['lname'])
-    userid_session = str(data_userid['user_id'])
+    fname_session = str(data['fname'])
+    lname_session = str(data['lname'])
+    userid_session = str(data['user_id'])
 
     cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date = CURDATE()", [userid_session])
     user_time_list = list(cur.fetchall())
@@ -417,8 +439,9 @@ def time_entry():
         date = form.date_form.data
         time_in = form.time_in_form.data
         time_out = form.time_out_form.data
+        category = form.category_form.data
         # execute time info into database
-        cur.execute("INSERT INTO time_entry(user_id, Date, FirstName, LastName, Time_In, Time_Out) VALUES(%s, %s, %s, %s, %s, %s)", (userid_session, date, fname_session, lname_session, time_in, time_out))
+        cur.execute("INSERT INTO time_entry(user_id, Date, FirstName, LastName, Time_In, Time_Out, category) VALUES(%s, %s, %s, %s, %s, %s, %s)", (userid_session, date, fname_session, lname_session, time_in, time_out, category))
 
         # commit to DB
         mysql.connection.commit()
@@ -428,12 +451,15 @@ def time_entry():
         flash("Time entry submitted!", 'success')
         print("Entry Received!")
         return redirect(url_for('time_entry'))
-    return render_template('time.html', title='Time Entry', form=form, name_greet=fname_session, date=todays_date, total_hours=round(total_hours, 2), table=user_time_list)
+    return render_template('time.html', title='Time Entry', form=form, name_greet=fname_session, date=todays_date, html_date=html_date, html_time=html_time, total_hours=round(total_hours, 2), table=user_time_list, categories=categories)
 
 
 @app.route('/edit_time/<string:time_id>', methods=['GET', 'POST'])
 @is_logged_in
 def edit_time(time_id):
+    # time categories
+    categories = ["Time Worked", "Meeting", "Training", "Overtime", "Holiday"]
+
     cur = mysql.connection.cursor()
     form = TimeEntry_Form(request.form)
 
@@ -448,13 +474,16 @@ def edit_time(time_id):
     form.date_form.data = entry['Date']
     form.time_in_form.data = entry['Time_In']
     form.time_out_form.data = entry['Time_Out']
+    form.category_form.data = entry['category']
+
 
     if request.method == 'POST' and form.validate():
         date = request.form['date_form']
         time_in = request.form['time_in_form']
         time_out = request.form['time_out_form']
+        category = request.form['category_form']
         # execute time info into database
-        cur.execute("UPDATE time_entry SET Date=%s, Time_In=%s, Time_Out=%s WHERE time_id = %s", [date, time_in, time_out, time_id])
+        cur.execute("UPDATE time_entry SET Date=%s, Time_In=%s, Time_Out=%s, category=%s WHERE time_id = %s", [date, time_in, time_out, category, time_id])
 
         # commit to DB
         mysql.connection.commit()
@@ -464,12 +493,13 @@ def edit_time(time_id):
         flash("Time Entry Updated!", 'success')
         print("Entry Received!")
         return redirect(url_for('time_entry'))
-    return render_template('edit_time.html', form=form, date=todays_date)
+    return render_template('edit_time.html', form=form, date=todays_date, categories=categories)
 
 
 @app.route('/delete_time/<string:time_id>', methods=['POST'])
 @is_logged_in
 def delete_time(time_id):
+    """deletes time_entry from database"""
     cur = mysql.connection.cursor()
 
     cur.execute("DELETE FROM time_entry WHERE time_id = %s", [time_id])
@@ -479,6 +509,146 @@ def delete_time(time_id):
     flash('Entry Deleted', 'success')
 
     return redirect(url_for('time_entry'))
+
+
+@app.route("/pay_entry", methods=["GET", "POST"])
+@is_logged_in
+def pay_entry():
+    """page to add wages"""
+    cur = mysql.connection.cursor()
+    eastern = timezone('US/Eastern')
+    now = datetime.now(eastern)
+    todays_date = now.strftime("%m/%d/%Y")
+    html_date = now.strftime("%Y-%m-%d")
+
+    current_email = session.get("email")
+    cur.execute("SELECT * FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
+    fname_session = data["fname"]
+    lname_session = data["lname"]
+    userid_session = data["user_id"]
+
+    form = PayEntryForm(request.form)
+
+    categories = ["Tips", "Payday", "Commission", "Bonus", "Miscellaneous"]
+    pay_types = ["Cash", "Credit Card", "Check", "Direct Deposit"]
+
+    cur.execute("SELECT * FROM wages WHERE user_id= %s AND date = CURDATE()", [userid_session])
+    pay_data = list(cur.fetchall())
+
+    total_pay = (0)
+    for pay in pay_data:
+        total_pay += pay["pay"]
+
+    tips_cash_total = 0
+    tips_card_total = 0
+    payday = 0
+    commission = 0
+    bonus = 0
+    miscellaneous = 0
+
+    for n in pay_data:
+        if "Cash" in n["payment_method"] and "Tips" in n["category"]:
+            tips_cash_total += n["pay"]
+        elif "Credit Card" in n["payment_method"] and "Tips" in n["category"]:
+            tips_card_total += n["pay"]
+        elif "Payday" in n["category"]:
+            payday += n["pay"]
+        elif "Commission" in n["category"]:
+            commission += n["pay"]
+        elif "Bonus" in n["category"]:
+            bonus += n["pay"]
+        elif "Miscellaneous" in n["category"]:
+            miscellaneous += n["pay"]
+
+
+
+    if request.method == 'POST' and form.validate():
+        if "submit_pay" in request.form:
+            date = form.date.data
+            ref_number = form.ref_number.data
+            pay = form.pay.data
+            category = form.category.data
+            pay_method = form.pay_method.data
+            cur.execute("INSERT INTO wages(date, user_id, fname, lname, ref_number, pay, category, payment_method) VALUES(%s, %s, %s, %s, %s, %s, %s, %s)", [date, userid_session, fname_session, lname_session, ref_number, pay, category, pay_method])
+            mysql.connection.commit()
+
+            flash("Pay Submitted!", "success")
+            return redirect(url_for('pay_entry'))
+
+    cur.close()
+
+    return render_template("pay_entry.html", form=form, name_greet=fname_session, date=todays_date, html_date=html_date, categories=categories, total_pay=total_pay, pay_data=pay_data, pay_types=pay_types, cash_tips=tips_cash_total, card_tips=tips_card_total, payday=payday, commission=commission, bonus=bonus, miscellaneous=miscellaneous)
+
+
+@app.route("/view_pay", methods=["GET", "POST"])
+@is_logged_in
+def view_pay():
+    cur = mysql.connection.cursor()
+    form = ViewTime_Form(request.form)
+
+    eastern = timezone('US/Eastern')
+    now = datetime.now(eastern)
+    todays_date = now.strftime("%m/%d/%Y")
+    html_date = now.strftime("%Y-%m-%d")
+
+    current_email = session.get("email")
+    cur.execute("SELECT * FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
+    fname_session = data["fname"]
+    lname_session = data["lname"]
+    userid_session = data["user_id"]
+
+    total_pay = 0
+    tips_cash_total = 0
+    tips_card_total = 0
+    payday = 0
+    commission = 0
+    bonus = 0
+    miscellaneous = 0
+
+    date_from = form.date_from.data
+    date_to = form.date_to.data
+    cur.execute("SELECT * FROM wages WHERE user_id = %s AND date >= %s AND date <= %s", [userid_session, date_from, date_to])
+    pay_data = list(cur.fetchall())
+
+    for n in pay_data:
+        total_pay += n["pay"]
+        if "Cash" in n["payment_method"] and "Tips" in n["category"]:
+            tips_cash_total += n["pay"]
+        elif "Credit Card" in n["payment_method"] and "Tips" in n["category"]:
+            tips_card_total += n["pay"]
+        elif "Payday" in n["category"]:
+            payday += n["pay"]
+        elif "Commission" in n["category"]:
+            commission += n["pay"]
+        elif "Bonus" in n["category"]:
+            bonus += n["pay"]
+        elif "Miscellaneous" in n["category"]:
+            miscellaneous += n["pay"]
+
+
+    if request.method == 'POST':
+        if "search" in request.form:
+            return render_template("view_pay.html", pay_data=pay_data, total_pay=total_pay, cash_tips=tips_cash_total, card_tips=tips_card_total, payday=payday, commission=commission, bonus=bonus, miscellaneous=miscellaneous, name_greet=fname_session, date=todays_date)
+
+    cur.close()
+    return render_template("view_pay.html", form=form, name_greet=fname_session, html_date=html_date)
+
+
+@app.route('/delete_sale/<string:pay_id>', methods=['POST'])
+@is_logged_in
+def delete_pay(pay_id):
+    """delete pay by pay_id"""
+    cur = mysql.connection.cursor()
+
+    cur.execute("DELETE FROM wages WHERE pay_id = %s", [pay_id])
+    mysql.connection.commit()
+    cur.close()
+
+    flash('Pay Deleted', 'success')
+
+    return redirect(url_for('pay_entry'))
 
 
 @app.route("/sales_entry", methods=['GET', 'POST'])
@@ -498,16 +668,12 @@ def sales_entry():
 
     current_email = session.get("email")
     # selects corresponding username data from DB
-    cur.execute("SELECT fname FROM users WHERE email = %s", [current_email])
-    data_fname = cur.fetchone()
-    cur.execute("SELECT lname FROM users WHERE email = %s", [current_email])
-    data_lname = cur.fetchone()
-    cur.execute("SELECT user_id FROM users WHERE email = %s", [current_email])
-    data_userid = cur.fetchone()
+    cur.execute("SELECT fname, lname, user_id FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
     # stores what was fetched from the SELECT statement into variables
-    fname_session = str(data_fname['fname'])
-    lname_session = str(data_lname['lname'])
-    userid_session = str(data_userid['user_id'])
+    fname_session = str(data['fname'])
+    lname_session = str(data['lname'])
+    userid_session = str(data['user_id'])
 
     # sidebar data_rev
     ## triple plays
@@ -600,13 +766,10 @@ def view_sales():
 
     # gets the current logged-in username
     current_email = session.get("email")
-    cur.execute("SELECT fname FROM users WHERE email = %s", [current_email])
-    data_fname = cur.fetchone()
-    fname_session = str(data_fname['fname'])
-
-    cur.execute("SELECT user_id FROM users WHERE email = %s", [current_email])
-    data_userid = cur.fetchone()
-    userid_session = str(data_userid['user_id'])
+    cur.execute("SELECT fname, user_id FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
+    fname_session = str(data['fname'])
+    userid_session = str(data['user_id'])
 
     date_from = search.date_from.data
     date_to = search.date_to.data
@@ -708,7 +871,7 @@ def edit_sale(sale_id):
         cur.close()
         flash("Sale Updated!", "success")
 
-        return redirect(url_for('view_sales'))
+        return redirect(url_for('sales_entry'))
 
     return render_template("edit_sale.html", form=form, date=todays_date)
 
@@ -757,15 +920,12 @@ def view_time():
 
     search = ViewTime_Form(request.form)
 
-    # gets the current logged-in username
+    # gets the current logged-in email
     current_email = session.get("email")
-    cur.execute("SELECT fname FROM users WHERE email = %s", [current_email])
-    data_fname = cur.fetchone()
-    fname_session = str(data_fname['fname'])
-
-    cur.execute("SELECT user_id FROM users WHERE email = %s", [current_email])
-    data_userid = cur.fetchone()
-    userid_session = str(data_userid['user_id'])
+    cur.execute("SELECT fname, user_id FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
+    fname_session = str(data['fname'])
+    userid_session = str(data['user_id'])
 
     date_from = search.date_from.data
     date_to = search.date_to.data
@@ -928,14 +1088,36 @@ def download_sales_entry(userid, date_from, date_to):
 @is_logged_in
 @check_confirmed
 def dashboard():
+    # time categories
+    categories = ["Time Worked", "Meeting", "Training", "Overtime", "Holiday"]
     cur = mysql.connection.cursor()
     current_email = session.get('email')
-    cur.execute("SELECT fname FROM users WHERE email = %s", [current_email])
+    cur.execute("SELECT fname, user_id FROM users WHERE email = %s", [current_email])
     data = cur.fetchone()
     current_fname = str(data['fname'])
-    return render_template('dashboard.html', name=current_fname)
+    userid_session = str(data['user_id'])
+
+    cur.execute("SELECT * FROM time_entry WHERE user_id = %s AND Date = CURDATE()", [userid_session])
+    data_list = list(cur.fetchall())
+
+    total_hours = [time_totals(data_list, category) for category in categories]
+
+    return render_template('dashboard.html', name=current_fname, total_hours=total_hours, categories=categories, data_list=data_list)
 
 
+def time_totals(data, category):
+    # time categories
+    categories = ["Time Worked", "Meeting", "Training", "Overtime", "Holiday"]
+    total_hours = float(0)
+    for row in data:
+        if category in row['category']:
+            a = row['Time_In']
+            b = row['Time_Out']
+            time_in = datetime.strptime(a, '%H:%M')
+            time_out = datetime.strptime(b, '%H:%M')
+            time_diff = float((time_out - time_in).seconds)
+            total_hours += (time_diff / 3600)
+    return round(total_hours,2)
 
 
 if __name__ == "__main__":

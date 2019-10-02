@@ -19,6 +19,14 @@
                     {{render_field(form.time_out_form, class="form-control", type="time")}}
                 </label>
             </div>
+            <div align="center">
+                <h3><small>Category</small></h3>
+                <select class="col-sm-4 form-control" value={{form.category_form}}>
+                  {% for category in categories %}
+                    <option>{{category}}</option>
+                  {% endfor %}
+                </select>
+            </div>
         </div>
         <br>
         <p><input type="Submit" name="update" class="btn btn-primary" value="Submit"></p>

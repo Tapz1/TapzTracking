@@ -1,7 +1,3 @@
-<style>
-
-</style>
-
 
 <nav class="navbar sticky-top navbar-expand-lg bg-dark navbar-dark">
   <a class="navbar-brand" href="/">TapzTracking</a>
@@ -28,40 +24,51 @@
 
     <ul class="navbar-nav">
 
-    {% if session.logged_in %}
+  {% if session.logged_in %}
+
     <!-- Dropdown -->
-  {% if session.Admin %}
-    <li class="nav-item dropdown">
-      <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
-        Sales
-      </a>
-      <div class="dropdown-menu bg-dark" style="">
-        <a class="dropdown-item text-light" href="/sales_entry">Sales Entry</a>
-        <a class="dropdown-item text-light" href="/view_sales">View Sales</a>
-      </div>
-    </li>
-  {% else %}
-  {% endif %}
-    <!-- Dropdown -->
-    <li class="nav-item dropdown">
-      <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
-        Time
-      </a>
-      <div class="dropdown-menu bg-dark">
-        <a class="dropdown-item text-light" href="/time_entry">Time Entry</a>
-        <a class="dropdown-item text-light" href="/view_time">View Time</a>
       {% if session.Admin %}
-        <a class="dropdown-item text-light" href="/employee_time">Employee Time</a>
+        <li class="nav-item dropdown">  <!--dropdown for sales entry-->
+          <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
+            Sales
+          </a>
+          <div class="dropdown-menu bg-dark" style="">
+            <a class="dropdown-item text-light" href="/sales_entry">Sales Entry</a>
+            <a class="dropdown-item text-light" href="/view_sales">View Sales</a>
+          </div>
+        </li>
       {% else %}
       {% endif %}
-      </div>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-light" href="/account">Account</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link text-light" href="/logout">Logout</a>
-    </li>
+        <!-- Dropdown -->
+        <li class="nav-item dropdown">  <!--dropdown for time entry-->
+          <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
+            Time
+          </a>
+          <div class="dropdown-menu bg-dark">
+            <a class="dropdown-item text-light" href="/time_entry">Time Entry</a>
+            <a class="dropdown-item text-light" href="/view_time">View Time</a>
+          {% if session.Admin %}
+            <a class="dropdown-item text-light" href="/employee_time">Employee Time</a>
+          {% else %}
+          {% endif %}
+          </div>
+        </li>
+        <!-- Dropdown -->
+        <li class="nav-item dropdown">  <!--dropdown for time entry-->
+          <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
+            Pay
+          </a>
+          <div class="dropdown-menu bg-dark">
+            <a class="dropdown-item text-light" href="/pay_entry">Pay Entry</a>
+            <a class="dropdown-item text-light" href="/view_pay">View Pay</a>
+        <!--end dropdown-->
+
+        <li class="nav-item"> <!--account page-->
+          <a class="nav-link text-light" href="/account">Account</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-light" href="/logout">Logout</a>
+        </li>
     {% else %}
       <li class="nav-item text-light">
         <a class="nav-link text-light" href="/register">Register</a>

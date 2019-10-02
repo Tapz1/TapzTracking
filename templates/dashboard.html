@@ -2,8 +2,25 @@
 
     {% block body %}
     <br>
-        <h1>Dashboard <small> Welcome, {{ name }}!</small></h1>
+        <h1 class="display-4"><strong>Dashboard</strong></h1>
         <hr>
-        <h2><small>Feel free to submit your time entry!</small></h2>
+        <h2>Welcome, {{ name }},<small> feel free to submit your time entry!</small></h2>
+
+    <hr>
+
+    <table class="table table-dark" align="center" style="font-family:Tahoma; width:80%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
+      <tr class="">
+        {% for category in categories %}
+        <th style="text-align:center;"><font size="5">{{category}}</font></th>
+        {% endfor %}
+      </tr>
+
+      <tr class="table-light table-bordered text-dark">
+        {% for i in total_hours %}
+          <td><font size="5">{{i}}</font></td>
+        {% endfor %}
+      </tr>
+
+    </table>
 
     {% endblock %}

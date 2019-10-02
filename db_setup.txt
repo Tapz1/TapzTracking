@@ -39,6 +39,23 @@ CREATE TABLE time_entry(
   PRIMARY KEY (time_id),
   FOREIGN KEY (user_id) REFERENCES users(user_id),
   date_submitted TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+  category varchar(50)
+);
+
+CREATE TABLE wages(
+	pay_id INT(50) NOT NULL AUTO_INCREMENT,
+	user_id INT,
+	group_id INTEGER,
+	date VARCHAR(20),
+	fname VARCHAR(50),
+	lname  VARCHAR(50),
+  ref_number VARCHAR(50),
+	pay FLOAT,
+	category VARCHAR(20),
+  payment_method VARCHAR (20),
+  PRIMARY KEY (pay_id),
+	FOREIGN KEY (user_id) REFERENCES users(user_id),
+  date_submitted TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
 
 
