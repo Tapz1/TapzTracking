@@ -24,8 +24,17 @@
                 <label> <!-- voice input -->
                     {{render_field(form.voice_unit, class="form-control", type="number", value="0", min="0", style='text-align:center; width: 40%;')}}
                 </label>
+
+                <label> <!-- voice input -->
+                    {{render_field(form.xh_unit, class="form-control", type="number", value="0", min="0", style='text-align:center; width: 40%;')}}
+                </label>
+
+                <label> <!-- voice input -->
+                    {{render_field(form.mobile_unit, class="form-control", type="number", value="0", min="0", style='text-align:center; width: 40%;')}}
+                </label>
+
                 <label> <!-- revenue input -->
-                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", value="0", min="0", style='text-align:center; width: 40%;')}}
+                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", value="0", min="0", style='text-align:center; width: 50%;')}}
                 </label>
               <div class="" style="clear:both;">
                 <label> <!-- chat  ID input -->
@@ -33,6 +42,9 @@
                 </label>
                 <label> <!-- cust_id input -->
                     {{render_field(form.cust_id, class="form-control", type="number")}}
+                </label>
+                <label> <!-- cust_id input -->
+                    {{render_field(form.sesh_id, class="form-control", type="text")}}
                 </label>
                 </div>
 
@@ -59,16 +71,19 @@
 
       </div>
           <br>
-          <table class="table table-dark table-hover table-striped" align="center" style="font-family:Tahoma; width:90%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
+          <table class="table table-dark table-hover table-striped" align="center" style="font-family:Tahoma; width:100%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
             <tr>
               <th style="text-align:center;"><font size="4">Date</font></th>
               <!--<th style="text-align:center;"><font size="4">Name</font></th>-->
               <th style="text-align:center;"><font size="4">Video</font></th>
               <th style="text-align:center;"><font size="4">Internet</font></th>
               <th style="text-align:center;"><font size="4">Voice</font></th>
+              <th style="text-align:center;"><font size="4">XH</font></th>
+              <th style="text-align:center;"><font size="4">Mobile</font></th>
               <th style="text-align:center;"><font size="4">Revenue</font></th>
               <th style="text-align:center;"><font size="4">Chat ID</font></th>
               <th style="text-align:center;"><font size="4">Cust ID</font></th>
+              <th style="text-algin:center;"><font size="4">Sesh ID</th>
               <th style="text-align:center;"><font size="4">Comments</font></th>
             </tr>
 
@@ -79,9 +94,12 @@
               <td><font size="3">{{i.vid_unit}}</font></td>
               <td><font size="3">{{i.hsd_unit}}</font></td>
               <td><font size="3">{{i.voice_unit}}</font></td>
-              <td><font size="3">{{i.revenue}}</font></td>
+              <td><font size="3">{{i.xh_unit}}</font></td>
+              <td><font size="3">{{i.mobile_unit}}</font></td>
+              <td><font size="3">${{i.revenue}}</font></td>
               <td><font size="3">{{i.chat_id}}</font></td>
               <td><font size="3">{{i.cust_id}}</font></td>
+              <td><font size="2">{{i.sesh_id}}</font></td>
               <td><font size="3">{{i.comment}}</font></td>
               <td><a href="edit_sale/{{i.sale_id}}" class="btn btn-default pull-right text-light"><strong>Edit</strong></a></td>
               <td>

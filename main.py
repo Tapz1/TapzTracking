@@ -108,6 +108,22 @@ def authorized(f):
     return wrap
 
 
+def comcaster(f):
+    """checks if user has 'comcast' in their group_name in DB"""
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT email FROM users WHERE group_name = 'comcast' OR group_name = 'Comcast'")
+        comcast_list = str(cur.fetchall())
+        email = session['email']
+        if 'logged_in' in session and (email).lower() in comcast_list:
+            return f(*args, **kwargs)
+        else:
+            flash('Unauthorized User', 'danger')
+            return redirect(url_for('dashboard'))
+    return wrap
+
+
 def is_logged_in(f):
     """checks if user logged in"""
     @wraps(f)
@@ -150,6 +166,7 @@ def register():
     fname = form.fname.data
     lname = form.lname.data
     email = form.email.data
+    group_name = form.group_name.data
     # Create cursor
     cur = mysql.connection.cursor()
 
@@ -163,7 +180,7 @@ def register():
             password = sha256_crypt.encrypt(str(form.password.data))
 
             # Executes the query statement
-            cur.execute("INSERT INTO users(fname, lname, email, password, confirmed) VALUES(%s, %s, %s, %s, False)", (fname, lname, email, password))
+            cur.execute("INSERT INTO users(fname, lname, email, password, group_name, confirmed) VALUES(%s, %s, %s, %s, %s, False)", (fname, lname, email.lower(), password, group_name))
 
             # commit to DB
             mysql.connection.commit()
@@ -209,7 +226,7 @@ def confirm_email(token):
         mysql.connection.commit()
         cur.close()
         flash('You have confirmed your account. Thanks!', 'success')
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('account'))
 
 
 @app.route('/unconfirmed')
@@ -266,6 +283,13 @@ def login():
 
                 if (email).lower() in admin_list:
                     session['Admin'] = True
+
+            # checks if comcast employee
+                cur.execute("SELECT email FROM users WHERE group_name = 'comcast' or group_name = 'Comcast'")
+                comcast_list = str(cur.fetchall())
+
+                if email in comcast_list:
+                    session['Comcaster'] = True
 
                 # checks if confirmed email
                 cur.execute("SELECT confirmed FROM users WHERE email = %s", [email])
@@ -636,7 +660,7 @@ def view_pay():
     return render_template("view_pay.html", form=form, name_greet=fname_session, html_date=html_date)
 
 
-@app.route('/delete_sale/<string:pay_id>', methods=['POST'])
+@app.route('/delete_pay/<string:pay_id>', methods=['POST'])
 @is_logged_in
 def delete_pay(pay_id):
     """delete pay by pay_id"""
@@ -654,6 +678,7 @@ def delete_pay(pay_id):
 @app.route("/sales_entry", methods=['GET', 'POST'])
 @is_logged_in
 @check_confirmed
+@comcaster
 def sales_entry():
     """page to add sales"""
     """Needs similar formatting to time_entry function"""
@@ -700,6 +725,9 @@ def sales_entry():
     total_hsd = 0
     total_voice = 0
     total_rev = (0)
+    total_xh = 0
+    total_mobile = 0
+
     for row in sales_data:
         a = int(row['vid_unit'])
         total_vids += a
@@ -710,9 +738,15 @@ def sales_entry():
         c = int(row['voice_unit'])
         total_voice += c
     for row in sales_data:
+        e = int(row['xh_unit'])
+        total_xh += e
+    for row in sales_data:
+        f = int(row['mobile_unit'])
+        total_mobile += f
+    for row in sales_data:
         d = float(row['revenue'])
         total_rev += d
-    total_units = total_vids + total_hsd + total_voice
+    total_units = total_vids + total_hsd + total_voice + total_xh + total_mobile
     # percentages
     if total_sales <= 0:
         vid_attach = 0
@@ -730,13 +764,16 @@ def sales_entry():
     hsd_unit = form.hsd_unit.data
     voice_unit = form.voice_unit.data
     revenue = form.revenue.data
+    xh_unit = form.xh_unit.data
+    mobile_unit = form.mobile_unit.data
     chat_id = form.chat_id.data
     cust_id = form.cust_id.data
     comment = form.comment.data
+    sesh_id = form.sesh_id.data
 
     if request.method == 'POST' and form.validate():
 
-        cur.execute("INSERT INTO sales_entry(user_id, Date, FirstName, LastName, vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment) VALUES(%s, CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s)", (userid_session, fname_session, lname_session, vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment))
+        cur.execute("INSERT INTO sales_entry(user_id, Date, FirstName, LastName, vid_unit, hsd_unit, voice_unit, xh_unit, mobile_unit, revenue, chat_id, cust_id, comment, sesh_id) VALUES(%s, CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (userid_session, fname_session, lname_session, vid_unit, hsd_unit, voice_unit, xh_unit, mobile_unit, revenue, chat_id, cust_id, comment, sesh_id))
         mysql.connection.commit()
 
         cur.close()
@@ -798,6 +835,9 @@ def view_sales():
     total_hsd = 0
     total_voice = 0
     total_rev = (0)
+    total_xh = 0
+    total_mobile = 0
+
     for row in sales_data:
         a = int(row['vid_unit'])
         total_vids += a
@@ -808,9 +848,15 @@ def view_sales():
         c = int(row['voice_unit'])
         total_voice += c
     for row in sales_data:
+        e = int(row['xh_unit'])
+        total_xh += e
+    for row in sales_data:
+        f = int(row['mobile_unit'])
+        total_mobile += f
+    for row in sales_data:
         d = float(row['revenue'])
         total_rev += d
-    total_units = total_vids + total_hsd + total_voice
+    total_units = total_vids + total_hsd + total_voice + total_xh + total_mobile
 
     # percentages
     if total_sales <= 0:
@@ -851,6 +897,8 @@ def edit_sale(sale_id):
     form.vid_unit.data = str(entry['vid_unit'])
     form.hsd_unit.data = str(entry['hsd_unit'])
     form.voice_unit.data = str(entry['voice_unit'])
+    form.xh_unit.data = str(entry['xh_unit'])
+    form.mobile_unit.data = str(entry['mobile_unit'])
     form.revenue.data = str(entry['revenue'])
     form.chat_id.data = entry['chat_id']
     form.cust_id.data = entry['cust_id']
@@ -860,12 +908,14 @@ def edit_sale(sale_id):
         vid_unit = request.form['vid_unit']
         hsd_unit = request.form['hsd_unit']
         voice_unit = request.form['voice_unit']
+        xh_unit = request.form['xh_unit']
+        mobile_unit = request.form['mobile_unit']
         revenue = request.form['revenue']
         chat_id = request.form['chat_id']
         cust_id = request.form['cust_id']
         comment = request.form['comment']
 
-        cur.execute("UPDATE sales_entry SET vid_unit=%s, hsd_unit=%s, voice_unit=%s, revenue=%s, chat_id=%s, cust_id=%s, comment=%s WHERE sale_id=%s", [vid_unit, hsd_unit, voice_unit, revenue, chat_id, cust_id, comment, sale_id])
+        cur.execute("UPDATE sales_entry SET vid_unit=%s, hsd_unit=%s, voice_unit=%s, xh_unit=%s, mobile_unit=%s, revenue=%s, chat_id=%s, cust_id=%s, comment=%s WHERE sale_id=%s", [vid_unit, hsd_unit, voice_unit, xh_unit, mobile_unit, revenue, chat_id, cust_id, comment, sale_id])
         mysql.connection.commit()
 
         cur.close()
@@ -1018,9 +1068,10 @@ def download_time_entry(userid, date_from, date_to):
 
     def generate():
         data = BytesIO()
+        #data = StringIO() # for testing purposes
 
         # write header
-        fieldnames = ['Date', 'FirstName', 'LastName', 'Time_In', 'Time_Out']
+        fieldnames = ['Date', 'FirstName', 'LastName', 'Time_In', 'Time_Out', 'category']
         csv_writer = csv.DictWriter(data, fieldnames=fieldnames)
         csv_writer.writeheader()
         yield data.getvalue()
@@ -1057,7 +1108,7 @@ def download_sales_entry(userid, date_from, date_to):
         data = BytesIO()
 
         # write header
-        fieldnames = ['Date', 'vid_unit', 'hsd_unit', 'voice_unit', 'revenue', 'chat_id', 'cust_id', 'comment']
+        fieldnames = ['Date', 'vid_unit', 'hsd_unit', 'voice_unit', 'xh_unit', 'mobile_unit', 'revenue', 'chat_id', 'cust_id', 'comment']
         csv_writer = csv.DictWriter(data, fieldnames=fieldnames)
         csv_writer.writeheader()
         yield data.getvalue()
@@ -1082,6 +1133,26 @@ def download_sales_entry(userid, date_from, date_to):
     # add a filename
     response.headers.set("Content-Disposition", "attachment", filename="Sales Report.csv")
     return response
+
+
+@app.route('/sales_dash')
+@comcaster
+@check_confirmed
+def sales_dashboard():
+    # time categories
+    categories = ["Name","Units", "Revenue"]
+    cur = mysql.connection.cursor()
+    current_email = session.get('email')
+    cur.execute("SELECT fname FROM users WHERE email = %s", [current_email])
+    data = cur.fetchone()
+    current_fname = str(data['fname'])
+
+    cur.execute("SELECT FirstName, LastName, SUM(vid_unit+hsd_unit+voice_unit+xh_unit+mobile_unit) AS 'Units', ROUND(SUM(revenue),2) AS 'Revenue' FROM sales_entry WHERE Date = CURDATE() GROUP BY user_id ORDER BY Units DESC, Revenue DESC")
+
+    sales_data = list(cur.fetchall())
+
+
+    return render_template('sales_dashboard.html', name=current_fname, categories=categories, sales_data=sales_data)
 
 
 @app.route('/dashboard')

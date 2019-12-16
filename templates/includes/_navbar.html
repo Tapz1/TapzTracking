@@ -14,12 +14,19 @@
       <li class="nav-item">
         <a class="nav-link text-light" href="/about">About</a>
       </li>
+    {% if session.Comcaster %}
+      <li class="nav-item">
+        <a class="nav-link text-light" href="/sales_dash">Sales Dashboard</a>
+      </li>
+    {% endif %}
+  <!-- testing this out for more time data
     {% if session.logged_in %}
       <li class="nav-item">
         <a class="nav-link text-light" href="/dashboard">Dashboard</a>
       </li>
     {% else %}
     {% endif %}
+  -->
     </ul>
 
     <ul class="navbar-nav">
@@ -27,7 +34,7 @@
   {% if session.logged_in %}
 
     <!-- Dropdown -->
-      {% if session.Admin %}
+      {% if session.Comcaster %}
         <li class="nav-item dropdown">  <!--dropdown for sales entry-->
           <a class="nav-link dropdown-toggle text-light" href="#" id="navbardrop" data-toggle="dropdown">
             Sales

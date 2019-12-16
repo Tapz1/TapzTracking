@@ -14,6 +14,6 @@ from datetime import datetime, timedelta
 from threading import Timer
 from submissionForms import RegisterForm, TimeEntry_Form, ViewTime_Form, SalesEntryForm, ResetPassword, EditAccount, PayEntryForm
 import db_credentials as db
-from io import BytesIO
+from io import BytesIO#, StringIO # for testing purposes
 import csv
 from pytz import timezone

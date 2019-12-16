@@ -22,8 +22,16 @@
                 <label class="lead-center"> <!-- voice input -->
                     {{render_field(form.voice_unit, class="form-control", type="number", style='text-align:center; width: 40%;')}}
                 </label>
+
+                <label class="lead-center"> <!-- voice input -->
+                    {{render_field(form.xh_unit, class="form-control", type="number", style='text-align:center; width: 40%;')}}
+                </label>
+
+                <label class="lead-center"> <!-- voice input -->
+                    {{render_field(form.mobile_unit, class="form-control", type="number", style='text-align:center; width: 40%;')}}
+                </label>
                 <label class="lead-center"> <!-- revenue input -->
-                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", style='text-align:center; width: 40%;')}}
+                    {{render_field(form.revenue, class="form-control", type="number", step="0.01", style='text-align:center; width: 50%;')}}
                 </label>
               <div class="" style="clear:both;">
                 <label class="lead-center"> <!-- chat  ID input -->
@@ -31,6 +39,9 @@
                 </label>
                 <label class="lead-center"> <!-- cust_id input -->
                     {{render_field(form.cust_id, class="form-control", type="number")}}
+                </label>
+                <label class="lead-center"> <!-- cust_id input -->
+                    {{render_field(form.sesh_id, class="form-control", type="text")}}
                 </label>
                 </div>
 

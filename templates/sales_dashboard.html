@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+<br>
+    <h1 class="display-4"><strong>Sales Dashboard</strong></h1>
+    <hr>
+    <h2>Welcome, {{ name }}!<small> Here's a summary of everyone's sales today</small></h2>
+
+<hr>
+
+<table class="table table-dark" align="center" style="font-family:Tahoma; width:80%; text-align:center; background-color: #228228228; box-shadow:5px 5px 10px black;">
+  <tr class="">
+    {% for category in categories %}
+    <th style="text-align:center;"><font size="5">{{category}}</font></th>
+    {% endfor %}
+  </tr>
+
+{% for i in sales_data %}
+  <tr class="table-light table-bordered text-dark">
+      <td><font size="5">{{i.FirstName +' ' + i.LastName}}</font></td>
+      <td><font size="5">{{i.Units}}</font></td>
+      <td><font size="5">${{i.Revenue}}</font></td>
+  </tr>
+{% endfor %}
+
+</table>
+
+{% endblock %}

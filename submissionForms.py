@@ -15,6 +15,7 @@ class RegisterForm(Form):
         validators.Length(min=8)
     ])
     confirm = PasswordField('Confirm Password')
+    group_name = StringField('Group Name')
 
 
 class ResetPassword(Form):
@@ -49,9 +50,12 @@ class SalesEntryForm(Form):
     vid_unit = StringField("Video", [validators.Length(min=1)])
     hsd_unit = StringField("Internet", [validators.Length(min=1)])
     voice_unit = StringField("Voice", [validators.Length(min=1)])
+    xh_unit = StringField("XH", [validators.Length(min=1)])
+    mobile_unit = StringField("Mobile", [validators.Length(min=1)])
     revenue = StringField("Revenue", [validators.Length(min=1)])
-    chat_id = StringField("Chat ID", [validators.Length(min=1)])
-    cust_id = StringField("Cust ID", [validators.Length(min=1)])
+    chat_id = StringField("Chat ID")
+    cust_id = StringField("Cust ID")
+    sesh_id = StringField("Session ID")
     comment = StringField("Comments")
 
 
