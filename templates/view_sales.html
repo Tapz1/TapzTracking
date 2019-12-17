@@ -52,6 +52,7 @@
         <th style="text-align:center;"><font size="4">Revenue</font></th>
         <th style="text-align:center;"><font size="4">Chat ID</font></th>
         <th style="text-align:center;"><font size="4">Cust ID</font></th>
+        <th style="text-algin:center;"><font size="4">Sesh ID</font></th>
         <th style="text-align:center;"><font size="4">Comments</font></th>
       </tr>
 
@@ -67,8 +68,9 @@
         <td><font size="3">{{i.revenue}}</font></td>
         <td><font size="3">{{i.chat_id}}</font></td>
         <td><font size="3">{{i.cust_id}}</font></td>
+        <td><font size="2">{{i.sesh_id}}</font></td>
         <td><font size="3">{{i.comment}}</font></td>
-        <td><a href="edit_sale/{{i.sale_id}}" class="btn btn-default pull-right text-dark" name="view_sales"><strong>Edit</strong></a></td>
+        <td><a href="edit_sale/{{i.sale_id}}" class="btn btn-default pull-right text-light" name="view_sales"><strong>Edit</strong></a></td>
         <td>
            <form action="{{url_for('delete_sale', sale_id=i.sale_id)}}" method="post">
              <input type="hidden" name="_method" value="DELETE">

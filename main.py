@@ -3,6 +3,7 @@ import secrets
 import mail_credentials as mc
 from flask_mail import Mail, Message
 
+
 app = Flask(__name__)
 
 app.secret_key = secrets.SECRET_KEY
@@ -74,42 +75,88 @@ def confirm_token(token, expiration=3600):
 
 # @ signifies a decorator - way to wrap a function and modifying its behavior
 
-def check_confirmed(f):
-    """prevents user if email hasn't been confirmed"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # checks if confirmed email
-        cur = mysql.connection.cursor()
-        current_email = session.get("email")
-        cur.execute("SELECT confirmed FROM users WHERE email = %s", [current_email])
-        data_confirm = cur.fetchone()
-        confirmed_email = str(data_confirm['confirmed'])
-        if "0" in confirmed_email:  # 0 in Boolean is False, 1 is True
-            flash('Please confirm your account!', 'warning')
-            return redirect(url_for('unconfirmed'))
-        return f(*args, **kwargs)
-
-    return decorated_function
+class DecoratorWraps():
+    """docstring for DecoratorWraps."""
 
 
-def authorized(f):
-    """checks if user is labeled "Admin" in DB"""
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT email FROM users WHERE role_name = 'Admin'")
-        admin_list = str(cur.fetchall())
-        email = session['email']
-        if 'logged_in' in session and (email).lower() in admin_list:
+    def comcaster(f):
+        """checks if user has 'comcast' in their group_name in DB"""
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT email FROM users WHERE group_name = 'comcast' OR group_name = 'Comcast'")
+            comcast_list = str(cur.fetchall())
+            email = session['email']
+            if 'logged_in' in session and (email).lower() in comcast_list:
+                return f(*args, **kwargs)
+            else:
+                flash('Unauthorized User', 'danger')
+                return redirect(url_for('dashboard'))
+        return wrap
+
+
+    def check_confirmed(f):
+        """prevents user if email hasn't been confirmed"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # checks if confirmed email
+            cur = mysql.connection.cursor()
+            current_email = session.get("email")
+            cur.execute("SELECT confirmed FROM users WHERE email = %s", [current_email])
+            data_confirm = cur.fetchone()
+            confirmed_email = str(data_confirm['confirmed'])
+            if "0" in confirmed_email:  # 0 in Boolean is False, 1 is True
+                flash('Please confirm your account!', 'warning')
+                return redirect(url_for('unconfirmed'))
             return f(*args, **kwargs)
-        else:
-            flash('Unauthorized User', 'danger')
-            return redirect(url_for('dashboard'))
-    return wrap
+        return decorated_function
 
 
-def comcaster(f):
+    def authorized(f):
+        """checks if user is labeled "Admin" in DB"""
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            cur = mysql.connection.cursor()
+            cur.execute("SELECT email FROM users WHERE role_name = 'Admin'")
+            admin_list = str(cur.fetchall())
+            email = session['email']
+            if 'logged_in' in session and (email).lower() in admin_list:
+                return f(*args, **kwargs)
+            else:
+                flash('Unauthorized User', 'danger')
+                return redirect(url_for('dashboard'))
+        return wrap
+
+
+    def is_logged_in(f):
+        """checks if user logged in"""
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            if 'logged_in' in session:
+                return f(*args, **kwargs)
+            else:
+                flash('Unauthorized, Please login', 'danger')
+                return redirect(url_for('login'))
+        return wrap
+
+
+    def only_whenNotLoggedIn(f):
+        """only allows access if user isn't logged in"""
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            if 'logged_in' not in session:
+                return f(*args, **kwargs)
+            else:
+                flash("You're already logged in!", 'danger')
+                return redirect(url_for('dashboard'))
+        return wrap
+
+
+
+
+#def comcaster(f):
     """checks if user has 'comcast' in their group_name in DB"""
+    """
     @wraps(f)
     def wrap(*args, **kwargs):
         cur = mysql.connection.cursor()
@@ -122,30 +169,7 @@ def comcaster(f):
             flash('Unauthorized User', 'danger')
             return redirect(url_for('dashboard'))
     return wrap
-
-
-def is_logged_in(f):
-    """checks if user logged in"""
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if 'logged_in' in session:
-            return f(*args, **kwargs)
-        else:
-            flash('Unauthorized, Please login', 'danger')
-            return redirect(url_for('login'))
-    return wrap
-
-
-def only_whenNotLoggedIn(f):
-    """only allows access if user isn't logged in"""
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if 'logged_in' not in session:
-            return f(*args, **kwargs)
-        else:
-            flash("You're already logged in!", 'danger')
-            return redirect(url_for('dashboard'))
-    return wrap
+    """
 
 
 @app.route("/")
@@ -159,7 +183,7 @@ def about():
 
 
 @app.route('/register', methods=['GET', 'POST'])
-@only_whenNotLoggedIn
+@DecoratorWraps.only_whenNotLoggedIn
 def register():
     """user registration"""
     form = RegisterForm(request.form)
@@ -205,7 +229,7 @@ def register():
 
 
 @app.route('/confirm/<token>')
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def confirm_email(token):
     cur = mysql.connection.cursor()
     current_email = session.get("email")
@@ -230,13 +254,13 @@ def confirm_email(token):
 
 
 @app.route('/unconfirmed')
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def unconfirmed():
     return render_template('unconfirmed.html')
 
 
 @app.route('/resend')
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def resend_confirmation():
     cur = mysql.connection.cursor()
     current_email = session.get("email")
@@ -254,7 +278,7 @@ def resend_confirmation():
 
 
 @app.route('/login', methods=['GET', 'POST'])
-@only_whenNotLoggedIn
+@DecoratorWraps.only_whenNotLoggedIn
 def login():
     """user can log into account"""
     cur = mysql.connection.cursor()
@@ -362,7 +386,7 @@ def reset_password(token):
 
 
 @app.route('/account', methods=['GET', 'POST'])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def account():
     cur = mysql.connection.cursor()
     current_email = session.get("email")
@@ -417,8 +441,8 @@ def edit_account(user_id):
 
 
 @app.route('/time_entry', methods=['GET', 'POST'])
-@is_logged_in
-@check_confirmed
+@DecoratorWraps.is_logged_in
+@DecoratorWraps.check_confirmed
 def time_entry():
     """
     user submits their time_entry
@@ -479,7 +503,7 @@ def time_entry():
 
 
 @app.route('/edit_time/<string:time_id>', methods=['GET', 'POST'])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def edit_time(time_id):
     # time categories
     categories = ["Time Worked", "Meeting", "Training", "Overtime", "Holiday"]
@@ -521,7 +545,7 @@ def edit_time(time_id):
 
 
 @app.route('/delete_time/<string:time_id>', methods=['POST'])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def delete_time(time_id):
     """deletes time_entry from database"""
     cur = mysql.connection.cursor()
@@ -536,7 +560,7 @@ def delete_time(time_id):
 
 
 @app.route("/pay_entry", methods=["GET", "POST"])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def pay_entry():
     """page to add wages"""
     cur = mysql.connection.cursor()
@@ -606,7 +630,7 @@ def pay_entry():
 
 
 @app.route("/view_pay", methods=["GET", "POST"])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def view_pay():
     cur = mysql.connection.cursor()
     form = ViewTime_Form(request.form)
@@ -661,7 +685,7 @@ def view_pay():
 
 
 @app.route('/delete_pay/<string:pay_id>', methods=['POST'])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def delete_pay(pay_id):
     """delete pay by pay_id"""
     cur = mysql.connection.cursor()
@@ -676,9 +700,9 @@ def delete_pay(pay_id):
 
 
 @app.route("/sales_entry", methods=['GET', 'POST'])
-@is_logged_in
-@check_confirmed
-@comcaster
+@DecoratorWraps.is_logged_in
+@DecoratorWraps.check_confirmed
+@DecoratorWraps.comcaster
 def sales_entry():
     """page to add sales"""
     """Needs similar formatting to time_entry function"""
@@ -784,8 +808,8 @@ def sales_entry():
 
 
 @app.route("/view_sales", methods=['GET', 'POST'])
-@is_logged_in
-@check_confirmed
+@DecoratorWraps.is_logged_in
+@DecoratorWraps.check_confirmed
 def view_sales():
     """To show sales in a table format"""
     """Top of page should show a dashboard of Total Units
@@ -881,7 +905,7 @@ def view_sales():
 
 
 @app.route('/edit_sale/<string:sale_id>', methods=['GET', 'POST'])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def edit_sale(sale_id):
     cur = mysql.connection.cursor()
     form = SalesEntryForm(request.form)
@@ -927,7 +951,7 @@ def edit_sale(sale_id):
 
 
 @app.route('/delete_sale/<string:sale_id>', methods=['POST'])
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def delete_sale(sale_id):
     """delete sales by sale_id"""
     cur = mysql.connection.cursor()
@@ -943,7 +967,7 @@ def delete_sale(sale_id):
 
 # log out
 @app.route('/logout')
-@is_logged_in
+@DecoratorWraps.is_logged_in
 def logout():
     session.clear()
 
@@ -958,8 +982,8 @@ def logout():
 
 
 @app.route('/view_time', methods=['GET', 'POST'])
-@is_logged_in
-@check_confirmed
+@DecoratorWraps.is_logged_in
+@DecoratorWraps.check_confirmed
 def view_time():
     """This function allows the user to view their time entry from a chosen time period"""
     cur = mysql.connection.cursor()
@@ -1006,8 +1030,8 @@ def view_time():
 
 
 @app.route('/employee_time', methods=['GET', 'POST'])
-@authorized
-@check_confirmed
+@DecoratorWraps.authorized
+@DecoratorWraps.check_confirmed
 def employee_time():
     """This function displays a list of assigned users and can view time entry for a chosen user from the list"""
     cur = mysql.connection.cursor()
@@ -1136,8 +1160,8 @@ def download_sales_entry(userid, date_from, date_to):
 
 
 @app.route('/sales_dash')
-@comcaster
-@check_confirmed
+@DecoratorWraps.comcaster
+@DecoratorWraps.check_confirmed
 def sales_dashboard():
     # time categories
     categories = ["Name","Units", "Revenue"]
@@ -1156,8 +1180,8 @@ def sales_dashboard():
 
 
 @app.route('/dashboard')
-@is_logged_in
-@check_confirmed
+@DecoratorWraps.is_logged_in
+@DecoratorWraps.check_confirmed
 def dashboard():
     # time categories
     categories = ["Time Worked", "Meeting", "Training", "Overtime", "Holiday"]
